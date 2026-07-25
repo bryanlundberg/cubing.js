@@ -72,8 +72,8 @@ export class TwistyPlayerModel {
   videoURL = new URLProp();
   competitionID = new ArbitraryStringProp();
   /**
-   * `<twisty-player>` interally supports associating custom timing information
-   * for this move, but there is not an API for this yet. In order to support
+   * `<twisty-player>` internally supports associating custom timing information
+   * with moves, but there is not an API for this yet. In order to support
    * exploratory use cases for such a feature in the future, this property
    * allows setting timeline information.
    *
