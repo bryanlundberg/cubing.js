@@ -415,6 +415,10 @@ export async function cubeLikePuzzleStickering(
       puzzleStickering.set(m.not(CENTERS()), PieceStickering.Ignored);
       break;
     }
+    case "edges-only": {
+      puzzleStickering.set(m.not(EDGES()), PieceStickering.Ignored);
+      break;
+    }
     case "opposite-centers": {
       puzzleStickering.set(
         m.not(m.and([CENTERS(), m.or(m.moves(["U", "D"]))])),
