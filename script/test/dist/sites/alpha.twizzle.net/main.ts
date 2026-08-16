@@ -24,7 +24,7 @@ async function runTest() {
   });
   const context = await browser.newContext();
   const page = await context.newPage();
-  page.setViewportSize({
+  await page.setViewportSize({
     width: 1024,
     height: 1024,
   });

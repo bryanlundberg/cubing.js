@@ -128,7 +128,7 @@ const browser = await chromium.launch({ headless: !DEBUG });
 const context = await browser.newContext();
 const page = await context.newPage();
 const height = args.height ?? args.width;
-page.setViewportSize({
+await page.setViewportSize({
   width: args.width,
   height,
 });

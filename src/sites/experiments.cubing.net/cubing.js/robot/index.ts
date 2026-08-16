@@ -152,12 +152,12 @@ class RobotDemo {
     }
   }
 
-  applyAlgString(s: string): void {
+  async applyAlgString(s: string): Promise<void> {
     const alg = Alg.fromString(s);
     for (const move of alg.experimentalLeafMoves()) {
       this.player.experimentalAddMove(move);
     }
-    this.output?.applyMoves(Array.from(alg.experimentalLeafMoves()));
+    await this.output?.applyMoves(Array.from(alg.experimentalLeafMoves()));
   }
 
   onAlgLeaf(algLeafEvent: algLeafEvent): void {
@@ -169,7 +169,7 @@ class RobotDemo {
       if (!move) {
         return;
       }
-      this.output?.applyMoves([move]);
+      void this.output?.applyMoves([move]);
     }
   }
 

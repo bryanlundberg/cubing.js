@@ -65,7 +65,7 @@ class App {
 
     puzzleSelect?.addEventListener("change", () => {
       void (async () => {
-        (await this.puzzle).setPuzzle(puzzles[puzzleSelect.value]);
+        void (await this.puzzle).setPuzzle(puzzles[puzzleSelect.value]);
       })();
 
       const url = new URL(location.href);
@@ -292,11 +292,11 @@ class Facelet {
     this.element.style.opacity = "1";
   }
 
-  select() {
+  async select() {
     void (async () => {
       const puzzle = await app.puzzle;
       if (puzzle.selectedFacelet) {
-        puzzle.selectedFacelet.deselect();
+        await puzzle.selectedFacelet.deselect();
       }
 
       puzzle.selectedFacelet = this;
@@ -312,22 +312,22 @@ class Facelet {
           puzzle.selectedFacelet &&
           puzzle.selectedFacelet.orbit === this.orbit
         ) {
-          puzzle.swap(puzzle.selectedFacelet, this);
-          puzzle.selectedFacelet.deselect();
+          await puzzle.swap(puzzle.selectedFacelet, this);
+          await puzzle.selectedFacelet.deselect();
         } else {
-          puzzle.selectedFacelet?.deselect();
-          this.select();
+          await puzzle.selectedFacelet?.deselect();
+          await this.select();
         }
         e.preventDefault();
         break;
       }
       case "twist": {
-        puzzle.twist(this);
+        await puzzle.twist(this);
         e.preventDefault();
         break;
       }
       case "ignore_orientation": {
-        puzzle.ignoreOrientation(this);
+        await puzzle.ignoreOrientation(this);
         e.preventDefault();
         break;
       }
