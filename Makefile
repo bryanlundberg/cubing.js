@@ -342,6 +342,9 @@ deploy-twizzle: build-site-twizzle
 deploy-experiments: build-site-experiments
 	${BUN_DX} --package @cubing/deploy deploy --
 
+
+VENDORED_TWIPS_GIT_VERSION_TXT=./src/cubing/vendor/mpl/twips/vendored-twips-git-version.txt
+
 .PHONY: roll-vendored-twips
 roll-vendored-twips:
 	test -d ../twips/ || exit
@@ -350,9 +353,11 @@ roll-vendored-twips:
 	mkdir -p ./src/cubing/vendor/mpl/twips
 	rm -rf ./src/cubing/vendor/mpl/twips/*
 	cp -R ../twips/dist/wasm/* ./src/cubing/vendor/mpl/twips/
+	printf "# " > ${VENDORED_TWIPS_GIT_VERSION_TXT}
+	cd ../twips/ && ${BUN_DX} --package @lgarron-bin/repo repo -- version get >> ../cubing.js/${VENDORED_TWIPS_GIT_VERSION_TXT}
 	# TODO: why does using normal `echo -n` ignore the `-n` here?
-	printf "https://github.com/cubing/twips/tree/" > ./src/cubing/vendor/mpl/twips/vendored-twips-git-version.txt
-	cd ../twips/ && ${BUN_DX} --package @lgarron-bin/repo repo -- version describe >> ../cubing.js/src/cubing/vendor/mpl/twips/vendored-twips-git-version.txt
+	printf "\nhttps://github.com/cubing/twips/tree/" >> ${VENDORED_TWIPS_GIT_VERSION_TXT}
+	git -C ../twips/ rev-parse HEAD >> ${VENDORED_TWIPS_GIT_VERSION_TXT}
 	${BUN_RUN} script/fix-vendored-twips.ts
 
 .PHONY: update-cdn
