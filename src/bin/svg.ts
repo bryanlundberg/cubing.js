@@ -26,7 +26,7 @@ source <(svg --completions zsh)
 
 import { basename } from "node:path";
 import { argv } from "node:process";
-import { argument, choice, object } from "@optique/core";
+import { argument, choice, object, option, withDefault } from "@optique/core";
 import { run } from "@optique/run";
 import { puzzles } from "cubing/puzzles";
 import { packageVersion } from "../metadata/packageVersion";
@@ -34,6 +34,13 @@ import { packageVersion } from "../metadata/packageVersion";
 const args = run(
   object({
     puzzleID: argument(choice(Object.keys(puzzles), { metavar: "PUZZLE_ID" })),
+    visualization: withDefault(
+      option(
+        "--visualization",
+        choice(["2D", "experimental-2D-LL"], { metavar: "PUZZLE_ID" }),
+      ),
+      "2D",
+    ),
   }),
   {
     programName: basename(argv[1]),
@@ -58,4 +65,15 @@ if (!puzzleLoader) {
   throw new Error(`Invalid puzzle ID: ${args.puzzleID}`);
 }
 
-console.log(await puzzleLoader.svg());
+switch (args.visualization) {
+  case "2D": {
+    console.log(await puzzleLoader.svg());
+    break;
+  }
+  case "experimental-2D-LL": {
+    console.log(await puzzleLoader.llSVG!());
+    break;
+  }
+  default:
+    throw undefined as never;
+}
