@@ -1,1 +1,2 @@
-https://github.com/cubing/twips/tree/v0.11.3
+# v0.12.3-dev
+https://github.com/cubing/twips/tree/2bde869a68254163a1cf16300d1ce7d98c4f8493
