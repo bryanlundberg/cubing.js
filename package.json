@@ -135,5 +135,8 @@
       "fromLocalDir": "./dist/sites/experiments.cubing.net/cubing.js/"
     }
   },
-  "$schema": "./node_modules/@cubing/deploy/config-schema.package.json"
+  "$schema": "./node_modules/@cubing/deploy/config-schema.package.json",
+  "patchedDependencies": {
+    "bun-types@1.3.14": "patches/bun-types@1.3.14.patch"
+  }
 }
