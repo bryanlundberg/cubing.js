@@ -31,14 +31,14 @@ setTwistyDebug({ showRenderStats: true });
 // experimental-stickering="picture"
 
 const puzzle = (new URL(location.href).searchParams.get("puzzle") ??
-  "gigaminx") as PuzzleID;
+  "megaminx") as PuzzleID;
 
 const twistyPlayer = document.body.appendChild(new TwistyPlayer({ puzzle }));
 document.body.appendChild(new TwistyPlayerDebugger(twistyPlayer));
 
 const alg =
-  puzzle === "gigaminx"
-    ? "(BL2 B2' DL2' B' BL' B' DL2' BL2 B' BL2' B2 BL DL2 B' DL BL B' BL2 DR2 U' (F2 FR2' D2 FR L2' 1-4BR 1-4R2' U)5 F2 FR2' D2 FR L2' 1-4BR 1-4R2' U2 2DR2 u2' 1-3R2 1-3BR' l2 fr' d2' fr2 f2' (u' 1-3R2 1-3BR' l2 fr' d2' fr2 f2')5 u dr2' bl2' b bl' dl' b dl2' bl' b2' bl2 b bl2' dl2 b bl b dl2 b2 bl2')"
+  puzzle === "megaminx"
+    ? "R++ D-- R++ D-- R++ D-- R++ D-- R++ D-- U'"
     : "y' y' U' E D R2 r2 F2 B2 U E D' R2 L2' z2 S2 U U D D S2 F2' B2";
 twistyPlayer.alg = alg;
 
