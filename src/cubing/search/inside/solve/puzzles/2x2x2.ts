@@ -7,7 +7,7 @@ import { mustBeInsideWorker } from "../../inside-worker";
 import type { SGSCachedData } from "../parseSGS";
 import { TrembleSolver } from "../tremble";
 import { wasmTwips } from "../twips";
-import { searchDynamicSideEvents } from "./dynamic/sgs-side-events";
+import { searchDynamicSGS2x2x2 } from "./dynamic/sgs-2x2x2";
 
 let cachedTrembleSolver: Promise<TrembleSolver> | null = null;
 async function getCachedTrembleSolver(): Promise<TrembleSolver> {
@@ -15,7 +15,7 @@ async function getCachedTrembleSolver(): Promise<TrembleSolver> {
     cachedTrembleSolver ||
     (cachedTrembleSolver = (async (): Promise<TrembleSolver> => {
       const sgsCachedData: SGSCachedData = await (
-        await searchDynamicSideEvents
+        await searchDynamicSGS2x2x2
       ).cachedData222();
       return new TrembleSolver(
         await puzzles["2x2x2"].kpuzzle(),
