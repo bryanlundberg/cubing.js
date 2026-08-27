@@ -17,18 +17,18 @@ export const cube2x2x2: PuzzleLoader = {
   fullName: "2×2×2 Cube",
   kpuzzle: getCached(async () => {
     const kpuzzle = new KPuzzle(
-      (await import("../dynamic/side-events/puzzles-dynamic-side-events"))
+      (await import("../dynamic/2x2x2/puzzles-dynamic-2x2x2"))
         .cube2x2x2JSON,
     );
     kpuzzle.definition.experimentalIsPatternSolved = experimentalIs2x2x2Solved;
     return kpuzzle;
   }),
   svg: async () =>
-    (await import("../dynamic/side-events/puzzles-dynamic-side-events"))
+    (await import("../dynamic/2x2x2/puzzles-dynamic-2x2x2"))
       .cube2x2x2SVG,
   llSVG: getCached(
     async () =>
-      (await import("../dynamic/side-events/puzzles-dynamic-side-events"))
+      (await import("../dynamic/2x2x2/puzzles-dynamic-2x2x2"))
         .cube2x2x2LLSVG,
   ),
   pg: getCached(async () => {
