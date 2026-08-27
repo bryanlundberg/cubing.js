@@ -73,11 +73,6 @@ const SCRAMBLE_EVENTS: Partial<Record<PuzzleID, string>> = {
   skewb: "skewb",
   square1: "sq1",
   fto: "fto",
-  master_tetraminx: "master_tetraminx",
-  kilominx: "kilominx",
-  redi_cube: "redi_cube",
-  loopover: "loopover",
-  baby_fto: "baby_fto",
 };
 
 export class App {
@@ -811,15 +806,7 @@ class ControlPane {
   }
 
   onPuzzle(puzzle: PuzzleID): void {
-    this.hintFaceletCheckbox.disabled = [
-      "clock",
-      "square1",
-      "redi_cube",
-      "loopover",
-      "melindas2x2x2x2",
-      "tri_quad",
-      "loopover",
-    ].includes(puzzle);
+    this.hintFaceletCheckbox.disabled = ["clock", "square1"].includes(puzzle);
     this.toolGrid.setButtonEnabled(
       "solve",
       ["2x2x2", "3x3x3", "skewb", "pyraminx", "megaminx"].includes(puzzle),
