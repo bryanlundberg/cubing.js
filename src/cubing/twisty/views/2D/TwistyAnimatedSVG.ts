@@ -14,7 +14,11 @@ const DATA_BONDED_PIECES_ATTRIBUTE = "data-bonded-pieces";
 interface PieceSeparator {
   element: SVGElement;
   orbitName: string;
-  slots: [number, number];
+  slotA: number;
+  slotB: number;
+  // Last value written to `element.style.display`, so `draw(…)` can skip the
+  // DOM write (and the style recalc it triggers) on frames where it is stable.
+  lastDisplay: string | null;
 }
 
 // Unique ID mechanism to keep SVG gradient element IDs unique. TODO: Is there
@@ -169,7 +173,9 @@ export class TwistyAnimatedSVG {
       this.pieceSeparators.push({
         element: separatorElem as SVGElement,
         orbitName,
-        slots: [Number.parseInt(slotA, 10), Number.parseInt(slotB, 10)],
+        slotA: Number.parseInt(slotA, 10),
+        slotB: Number.parseInt(slotB, 10),
+        lastDisplay: null,
       });
     }
 
@@ -199,11 +205,19 @@ export class TwistyAnimatedSVG {
 
     for (const separator of this.pieceSeparators) {
       const { pieces } = pattern.patternData[separator.orbitName];
-      const [a, b] = separator.slots.map((slot) => pieces[slot]);
-      const bond = `${separator.orbitName}:${Math.min(a, b)}:${Math.max(a, b)}`;
-      separator.element.style.display = this.bondedPieces.has(bond)
+      const a = pieces[separator.slotA];
+      const b = pieces[separator.slotB];
+      const lo = a < b ? a : b;
+      const hi = a < b ? b : a;
+      const display = this.bondedPieces.has(
+        `${separator.orbitName}:${lo}:${hi}`,
+      )
         ? "none"
         : "";
+      if (separator.lastDisplay !== display) {
+        separator.element.style.display = display;
+        separator.lastDisplay = display;
+      }
     }
 
     for (const orbitDefinition of pattern.kpuzzle.definition.orbits) {
@@ -231,9 +245,21 @@ export class TwistyAnimatedSVG {
               orientation) %
               orbitDefinition.numOrientations,
           );
+          // Resolve the gradient's final state for this frame *before*
+          // touching the DOM. A stationary piece during a move matches both the
+          // animated branch and the flat-color branch, and the flat one wins;
+          // deciding first means each gradient is described by exactly one
+          // signature, which is what makes skipping a repeat write sound.
+          let stopColorStart: string;
+          let stopColorEnd: string;
+          let leadingOffset: string;
+          let trailingOffset: string;
+          let signature: string;
+
           let singleColor = false;
+          let fromNext: string | null = null;
           if (nextTransformationOrbit) {
-            const fromNext = this.elementID(
+            fromNext = this.elementID(
               orbitDefinition.orbitName,
               nextTransformationOrbit.permutation[idx],
               (orbitDefinition.numOrientations -
@@ -242,62 +268,47 @@ export class TwistyAnimatedSVG {
                 orbitDefinition.numOrientations,
             );
             if (fromCur === fromNext) {
-              singleColor = true; // TODO: Avoid redundant work during move.
+              singleColor = true;
             }
+          } else {
+            singleColor = true;
+          }
+
+          if (!singleColor) {
             fraction = fraction || 0; // TODO Use the type system to tie this to nextPattern?
             const easedBackwardsPercent =
               100 * (1 - fraction * fraction * (2 - fraction * fraction)); // TODO: Move easing up the stack.
-            this.gradients[id].children[0].setAttribute(
-              "stop-color",
-              this.originalColors[fromCur],
-            );
-            this.gradients[id].children[0].setAttribute(
-              "offset",
-              `${Math.max(easedBackwardsPercent - 5, 0)}%`,
-            );
-            this.gradients[id].children[1].setAttribute(
-              "offset",
-              `${Math.max(easedBackwardsPercent - 5, 0)}%`,
-            );
-            this.gradients[id].children[2].setAttribute(
-              "offset",
-              `${easedBackwardsPercent}%`,
-            );
-            this.gradients[id].children[3].setAttribute(
-              "offset",
-              `${easedBackwardsPercent}%`,
-            );
-            this.gradients[id].children[3].setAttribute(
-              "stop-color",
-              this.originalColors[fromNext],
-            );
+            stopColorStart = this.originalColors[fromCur];
+            stopColorEnd = this.originalColors[fromNext!];
+            leadingOffset = `${Math.max(easedBackwardsPercent - 5, 0)}%`;
+            trailingOffset = `${easedBackwardsPercent}%`;
+            signature = `a|${fromCur}|${fromNext}|${easedBackwardsPercent}`;
+          } else if (
+            this.showUnknownOrientations &&
+            currentPatternOrbit.orientationMod?.[idx] === 1
+          ) {
+            stopColorStart = "#000";
+            stopColorEnd = this.originalColors[fromCur];
+            leadingOffset = "5%";
+            trailingOffset = "20%";
+            signature = `b|${fromCur}`;
           } else {
-            singleColor = true; // TODO: Avoid redundant work during move.
+            stopColorStart = this.originalColors[fromCur];
+            stopColorEnd = this.originalColors[fromCur];
+            leadingOffset = "100%";
+            trailingOffset = "100%";
+            signature = `c|${fromCur}`;
           }
-          if (singleColor) {
-            if (
-              this.showUnknownOrientations &&
-              currentPatternOrbit.orientationMod?.[idx] === 1
-            ) {
-              this.gradients[id].children[0].setAttribute("stop-color", "#000");
-              this.gradients[id].children[0].setAttribute("offset", "5%");
-              this.gradients[id].children[1].setAttribute("offset", "5%");
-              this.gradients[id].children[2].setAttribute("offset", "20%");
-              this.gradients[id].children[3].setAttribute("offset", "20%");
-              this.gradients[id].children[3].setAttribute(
-                "stop-color",
-                this.originalColors[fromCur],
-              );
-            } else {
-              this.gradients[id].children[0].setAttribute(
-                "stop-color",
-                this.originalColors[fromCur],
-              );
-              this.gradients[id].children[0].setAttribute("offset", "100%");
-              this.gradients[id].children[1].setAttribute("offset", "100%");
-              this.gradients[id].children[2].setAttribute("offset", "100%");
-              this.gradients[id].children[3].setAttribute("offset", "100%");
-            }
+
+          if (this.#lastGradientWrite[id] !== signature) {
+            this.#lastGradientWrite[id] = signature;
+            const { children } = this.gradients[id];
+            children[0].setAttribute("stop-color", stopColorStart);
+            children[0].setAttribute("offset", leadingOffset);
+            children[1].setAttribute("offset", leadingOffset);
+            children[2].setAttribute("offset", trailingOffset);
+            children[3].setAttribute("offset", trailingOffset);
+            children[3].setAttribute("stop-color", stopColorEnd);
           }
           // this.gradients[id]
           // this.elementByID(id).style.fill = this.originalColors[from];
@@ -305,6 +316,12 @@ export class TwistyAnimatedSVG {
       }
     }
   }
+
+  // Signature of the state last written to each gradient. `draw(…)` runs on
+  // every animation frame and rewrites all four stops of every facelet, but
+  // only the facelets touched by the move in progress actually change, so a
+  // matching signature means the DOM already holds the desired state.
+  #lastGradientWrite: Record<string, string> = {};
 
   private faceletStyle(id: string): string {
     const paint = `url(#grad-${this.svgID}-${id})`;
