@@ -27,8 +27,8 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: "latest"
-      - run: make setup
-      - run: make build-site-docs
+      - run: bun run task setup
+      - run: bun run task build-site-docs
       - name: Upload artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
