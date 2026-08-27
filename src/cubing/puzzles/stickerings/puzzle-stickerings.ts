@@ -6,6 +6,10 @@ const megaAnd3x3x3LL = {
   "3x3x3": LL,
   megaminx: LL,
 };
+const megaAnd3x3x3AndSquare1LL = {
+  ...megaAnd3x3x3LL,
+  square1: LL,
+};
 const megaAnd3x3x3LS = {
   "3x3x3": LS,
   megaminx: LS,
@@ -15,9 +19,15 @@ export const experimentalStickerings: Record<
   string,
   { groups?: Partial<Record<PuzzleID, string>> }
 > = {
-  full: { groups: { "3x3x3": "Stickering", megaminx: "Stickering" } }, // default
-  OLL: { groups: megaAnd3x3x3LL },
-  PLL: { groups: megaAnd3x3x3LL },
+  full: {
+    groups: {
+      "3x3x3": "Stickering",
+      megaminx: "Stickering",
+      square1: "Stickering",
+    },
+  }, // default
+  OLL: { groups: megaAnd3x3x3AndSquare1LL },
+  PLL: { groups: megaAnd3x3x3AndSquare1LL },
   LL: { groups: megaAnd3x3x3LL },
   EOLL: { groups: megaAnd3x3x3LL },
   COLL: { groups: megaAnd3x3x3LL },
