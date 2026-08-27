@@ -5,13 +5,16 @@ import { Object3D } from "three/src/core/Object3D.js";
 import type { Material } from "three/src/materials/Material.js";
 import { MeshBasicMaterial } from "three/src/materials/MeshBasicMaterial.js";
 import { Color } from "three/src/math/Color.js";
-import { Euler } from "three/src/math/Euler.js";
 import { Vector3 } from "three/src/math/Vector3.js";
 import { Group } from "three/src/objects/Group.js";
 import { Mesh } from "three/src/objects/Mesh.js";
 import type { Texture } from "three/src/textures/Texture.js";
 import { Move } from "../../../../alg";
-import type { KPuzzle, KTransformation } from "../../../../kpuzzle";
+import type {
+  KPuzzle,
+  KTransformation,
+  KTransformationData,
+} from "../../../../kpuzzle";
 import type {
   StickerDat,
   StickerDatAxis,
@@ -518,7 +521,7 @@ export class PG3D extends Object3D implements Twisty3DPuzzle {
   private foundationBound: number; // before this: colored; after: black
   private fixedGeo: BufferGeometry;
   private lastPos?: PuzzlePosition;
-  private lastMoveTransformation?: KTransformation;
+  private lastMoveTransformationData?: KTransformationData;
   private hintMaterial: Material;
   private stickerMaterial: Material;
   private materialArray1: Material[];
@@ -823,8 +826,7 @@ export class PG3D extends Object3D implements Twisty3DPuzzle {
 
   public onPositionChange(p: PuzzlePosition): void {
     const { pattern } = p;
-    const noRotation = new Euler();
-    this.movingObj.rotation.copy(noRotation);
+    this.movingObj.rotation.set(0, 0, 0);
     let colormods = 0;
     const filler = this.filler;
     const ind = filler.ind;
@@ -909,11 +911,13 @@ export class PG3D extends Object3D implements Twisty3DPuzzle {
           TAU) /
         ax.order;
       this.movingObj.rotateOnAxis(turnNormal, angle);
-      if (this.lastMoveTransformation !== quantumTransformation) {
+      const quantumTransformationData =
+        quantumTransformation.transformationData;
+      if (this.lastMoveTransformationData !== quantumTransformationData) {
         for (const orbit in this.stickers) {
           const pieces = this.stickers[orbit];
           const orin = pieces.length;
-          const bmv = quantumTransformation.transformationData[orbit];
+          const bmv = quantumTransformationData[orbit];
           for (let ori = 0; ori < orin; ori++) {
             const pieces2 = pieces[ori];
             for (let i = 0; i < pieces2.length; i++) {
@@ -963,7 +967,7 @@ export class PG3D extends Object3D implements Twisty3DPuzzle {
             }
           }
         }
-        this.lastMoveTransformation = quantumTransformation;
+        this.lastMoveTransformationData = quantumTransformationData;
       }
     }
     if (this.#pendingStickeringUpdate || vismods) {
