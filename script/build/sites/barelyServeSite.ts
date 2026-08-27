@@ -85,9 +85,7 @@ async function writeVersionJSON(siteFolder: Path) {
   ]).text({
     trimTrailingNewlines: "single-required",
   });
-  const date = await new PrintableShellCommand("date", []).text({
-    trimTrailingNewlines: "single-required",
-  });
+  const date = new Date().toString();
   const commitHash = await new PrintableShellCommand("git", [
     "rev-parse",
     "HEAD",
