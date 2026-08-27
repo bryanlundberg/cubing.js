@@ -10,12 +10,12 @@ export const clock: PuzzleLoader = {
   kpuzzle: getCached(
     async () =>
       new KPuzzle(
-        (await import("../dynamic/side-events/puzzles-dynamic-side-events"))
+        (await import("../dynamic/clock/puzzles-dynamic-clock"))
           .clockJSON,
       ),
   ),
   svg: getCached(async () => {
-    return (await import("../dynamic/side-events/puzzles-dynamic-side-events"))
+    return (await import("../dynamic/clock/puzzles-dynamic-clock"))
       .clockSVG;
   }),
 };
