@@ -11,7 +11,7 @@ class PyraminxPuzzleLoader extends PGPuzzleLoader {
     });
   }
   override svg = getCached(async () => {
-    return (await import("../dynamic/side-events/puzzles-dynamic-side-events"))
+    return (await import("../dynamic/pyraminx/puzzles-dynamic-pyraminx"))
       .pyraminxSVG;
   });
   algTransformData: AlgTransformData = {
