@@ -109,10 +109,11 @@
     "./*/index.d.ts"
   ],
   "scripts": {
-    "build": "make build",
-    "dev": "make dev",
-    "prepublishOnly": "make prepublishOnly",
-    "postpublish": "make postpublish"
+    "task": "bun ./script/task.ts",
+    "build": "bun ./script/task.ts build",
+    "dev": "bun ./script/task.ts dev",
+    "prepublishOnly": "bun ./script/task.ts prepublishOnly",
+    "postpublish": "bun ./script/task.ts postpublish"
   },
   "keywords": [
     "cubing",
