@@ -873,18 +873,15 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
             TAU) /
             4,
         );
+        // Loop-invariant: this depends only on `move`, so computing it inside
+        // the piece loop rebuilt a `Move` and a `KTransformation` per piece per
+        // frame.
+        const orbitTransformationData = this.kpuzzle.moveToTransformation(
+          move.modified({ amount: 1 }),
+        ).transformationData[orbit];
+        const { permutation, orientationDelta } = orbitTransformationData;
         for (let i = 0; i < pieces.length; i++) {
-          const quantumTransformation = this.kpuzzle.moveToTransformation(
-            move.modified({ amount: 1 }),
-          );
-          const k =
-            quantumTransformation.transformationData[orbit].permutation[i];
-          if (
-            i !== k ||
-            quantumTransformation.transformationData[orbit].orientationDelta[
-              i
-            ] !== 0
-          ) {
+          if (i !== permutation[i] || orientationDelta[i] !== 0) {
             const j = reid333.patternData[orbit].pieces[i];
             this.pieces[orbit][j].matrix.premultiply(moveMatrix);
           }
