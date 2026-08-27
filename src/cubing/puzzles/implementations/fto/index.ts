@@ -24,7 +24,7 @@ class FTOPuzzleLoader extends PGPuzzleLoader {
   }
   stickerings = ftoStickerings;
   override svg = getCached(async () => {
-    return (await import("../dynamic/unofficial/puzzles-dynamic-unofficial"))
+    return (await import("../dynamic/fto/puzzles-dynamic-fto"))
       .ftoSVG;
   });
   keyMapping = async () => ftoKeyMapping;
