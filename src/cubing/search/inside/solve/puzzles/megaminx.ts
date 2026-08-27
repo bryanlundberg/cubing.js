@@ -4,7 +4,7 @@ import { KPattern } from "../../../../kpuzzle";
 import { mustBeInsideWorker } from "../../inside-worker";
 import type { SGSCachedData } from "../parseSGS";
 import { TrembleSolver } from "../tremble";
-import { searchDynamicSideEvents } from "./dynamic/sgs-side-events";
+import { searchDynamicSGSmegaminx } from "./dynamic/sgs-megaminx";
 
 const TREMBLE_DEPTH = 2;
 
@@ -14,10 +14,10 @@ async function getCachedTrembleSolver(): Promise<TrembleSolver> {
     cachedTrembleSolver ||
     (cachedTrembleSolver = (async (): Promise<TrembleSolver> => {
       const json: SGSCachedData = await (
-        await searchDynamicSideEvents
+        await searchDynamicSGSmegaminx
       ).cachedSGSDataMegaminx();
       return new TrembleSolver(
-        await (await searchDynamicSideEvents).cachedMegaminxKPuzzleWithoutMO(),
+        await (await searchDynamicSGSmegaminx).cachedMegaminxKPuzzleWithoutMO(),
         json,
         ["U", "R", "F", "L", "BR", "BL", "FR", "FL", "DR", "DL", "B", "D"],
       );
@@ -38,7 +38,7 @@ export async function solveMegaminx(pattern: KPattern): Promise<Alg> {
   );
   patternDataWithoutMO["CENTERS"].orientation = new Array(12).fill(0);
   const patternWithoutMO = new KPattern(
-    await (await searchDynamicSideEvents).cachedMegaminxKPuzzleWithoutMO(),
+    await (await searchDynamicSGSmegaminx).cachedMegaminxKPuzzleWithoutMO(),
     patternDataWithoutMO,
   );
   const alg = await trembleSolver.solve(
