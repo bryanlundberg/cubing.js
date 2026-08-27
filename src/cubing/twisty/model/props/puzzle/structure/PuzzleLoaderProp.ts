@@ -8,7 +8,6 @@ import {
 } from "../../TwistyProp";
 import type { PuzzleID } from "./PuzzleIDRequestProp";
 
-8;
 interface PuzzleLoaderPropInputs {
   puzzleIDRequest: PuzzleID | NoValueType;
   puzzleDescriptionRequest: PuzzleDescriptionString | NoValueType;
