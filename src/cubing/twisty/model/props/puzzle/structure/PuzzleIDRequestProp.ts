@@ -12,21 +12,12 @@ export const puzzleIDs = {
   "5x5x5": true,
   "6x6x6": true,
   "7x7x7": true,
-  "40x40x40": true,
   megaminx: true,
   pyraminx: true,
   square1: true,
   clock: true,
   skewb: true,
   fto: true,
-  gigaminx: true,
-  master_tetraminx: true,
-  kilominx: true,
-  redi_cube: true,
-  baby_fto: true,
-  melindas2x2x2x2: true,
-  tri_quad: true,
-  loopover: true,
 };
 export type PuzzleID = keyof typeof puzzleIDs;
 
