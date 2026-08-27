@@ -30,7 +30,6 @@ import { randomScrambleForEvent } from "cubing/scramble";
 const eventsOrdered = [
   "444",
   "444bf",
-  "kilominx",
   "fto",
   "333",
   "222",
@@ -47,8 +46,6 @@ const eventsOrdered = [
   "sq1",
   "555bf",
   "333mbf",
-  "redi_cube",
-  "master_tetraminx",
 ];
 
 const eventsParallel = [];
