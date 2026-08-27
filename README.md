@@ -1,112 +1,107 @@
 <img src="cubing.js.png" alt="cubing.js" width="512">
 
-`cubing.js` is a collection of JavaScript libraries, still under development.
+# `cubing.js` lightweight fork
 
-## Twizzle
+A **lightweight fork of [`cubing.js`](https://github.com/cubing/cubing.js)**: fewer puzzles, smaller lazily-loaded chunks, and some extra visualization features.
 
-<a href="https://alpha.twizzle.net/"><img src="./src/sites/alpha.twizzle.net/twizzle-social-media-image.png" width="256">
+The API surface, the module layout and the build system are unchanged from upstream, so this is a drop-in replacement for `cubing` as long as you only use the puzzles listed below.
 
-Twizzle</a> is the spiritual successor to [alg.cubing.net](https://alg.cubing.net/), based on `cubing.js`. It is currently being developed at [src/sites/alpha.twizzle.net](./src/sites/alpha.twizzle.net/). See the [Twizzle Diaries](https://www.youtube.com/watch?v=9_kqXn0Mq-o&list=PLFh3NgpDbzN4VkcfjEZSQ_TYQv_OEjbjF) video series for more information on Twizzle's vision and use cases.
+- Upstream project: <https://github.com/cubing/cubing.js>
+- Upstream documentation: <https://js.cubing.net/cubing/>
 
-## Getting started
+## Supported puzzles
 
-If you're just getting started, the easiest way to use `cubing.js` is through `cdn.cubing.net`:
+| Puzzle | ID | 3D | 2D net | 2D last layer | Scrambles |
+| --- | --- | :-: | :-: | :-: | --- |
+| 3×3×3 Cube | `3x3x3` | ✅ | ✅ | ✅ | random-state |
+| 2×2×2 Cube | `2x2x2` | ✅ | ✅ | ✅ | random-state |
+| 4×4×4 Cube | `4x4x4` | ✅ | ❌ | ✅ | random-state |
+| 5×5×5 Cube | `5x5x5` | ✅ | ❌ | ✅ | random-moves |
+| 6×6×6 Cube | `6x6x6` | ✅ | ❌ | ❌ | random-moves |
+| 7×7×7 Cube | `7x7x7` | ✅ | ❌ | ❌ | random-moves |
+| Square-1 | `square1` | ✅ | ✅ | ✅ | random-state |
+| Pyraminx | `pyraminx` | ✅ | ✅ | ❌ | random-state |
+| Megaminx | `megaminx` | ✅ | ❌ | ✅ | random-moves |
+| Clock | `clock` | ❌ | ✅ | ❌ | random-state |
+| Skewb | `skewb` | ✅ | ❌ | ❌ | random-state |
+| Face-Turning Octahedron | `fto` | ✅ | ✅ | ❌ | random-state |
 
-```html
-<script src="https://cdn.cubing.net/v0/js/cubing/twisty" type="module"></script>
-<twisty-player alg="R U R' U R U2' R'"></twisty-player>
-```
+Every WCA event is supported (`222`, `333`, `444`, `555`, `666`, `777`, `333bf`, `333fm`, `333oh`, `333mbf`, `444bf`, `555bf`, `clock`, `minx`, `pyram`, `skewb`, `sq1`), plus `fto`.
 
-You can find more documentation at [js.cubing.net/cubing/](https://js.cubing.net/cubing).
+## Breaking changes vs. upstream
 
-## Using with `node` and `npm`
+### Removed puzzles
 
-If you would like to use `cubing.js` as a library in your package-based projects, make sure you have [node](https://nodejs.org/en/) and [npm](https://docs.npmjs.com/getting-started) installed (installing `node` will install `npm` as well). Once you have installed those, you can run:
+These puzzles are gone from `puzzles`, from `PuzzleID`, and from the `<twisty-player puzzle="…">` attribute. Requesting one throws instead of rendering.
 
-```shell
-npm install cubing
-```
+| Removed | Upstream ID |
+| --- | --- |
+| Kilominx | `kilominx` |
+| Master Tetraminx | `master_tetraminx` |
+| Gigaminx | `gigaminx` |
+| Redi Cube | `redi_cube` |
+| Baby FTO | `baby_fto` |
+| Melinda's 2×2×2×2 | `melindas2x2x2x2` |
+| Tri-Quad | `tri_quad` |
+| Loopover | `loopover` |
+| 40×40×40 Cube | `40x40x40` |
 
-Then you can use modules like this:
+### Removed events
 
-```js
-import { Alg } from "cubing/alg";
-import { TwistyPlayer } from "cubing/twisty";
-```
+`randomScrambleForEvent(…)` no longer accepts the Twizzle-only events that belonged to the removed puzzles: `kilominx`, `master_tetraminx`, `redi_cube`, `baby_fto`, `loopover`. Every WCA event plus `fto` still works.
 
-Please note that `cubing.js` requires ES2022 module compatibility. See [here](https://js.cubing.net/cubing/#javascript).
+### Other removals
 
-## Contributing
+- The vendored solvers for the removed puzzles (`kilosolver.js`, `master_tetraminx-solver.js`, `redi_cube.js`) are deleted.
+- The `stress-tests/40x40x40` demo page is deleted, along with its 379 kB solution file.
+- Dynamic chunk entry points were renamed (see [Re-chunking](#re-chunking)). This only matters if you were importing internal `puzzles-dynamic-*` paths directly, which is not part of the public API.
 
-If you would like to contribute to the development of `cubing.js`, please refer to our [contribution guidelines](./CONTRIBUTING.md).
+`cubing/puzzle-geometry` is deliberately **not** trimmed: its puzzle catalogue is public API and only costs a few kB of strings.
 
-## Developing `cubing.js` itself
+## What this fork adds
 
-Working on `cubing.js` requires the following tools:
+- **Square-1 in 3D.** New `Square1_3D` visualization strategy, now the default for `puzzle="square1"`. Upstream always rendered Square-1 flat.
+- **Square-1 2D last-layer diagrams.** `visualization="experimental-2D-LL"` on `square1`, with `OLL` and `PLL` stickerings.
+- **Better 2D Square-1 rendering.** Piece separator support in the SVG renderer: outlines between two halves of a piece hide and reappear as pieces join and split.
+- **5×5×5 2D last-layer diagrams.** `visualization="experimental-2D-LL"` on `5x5x5`, with a cached SVG built from reusable `<use>` elements.
+- **`L2E` stickering.** Last two edges, for `4x4x4`, `5x5x5` and `6x6x6`, under the Reduction group.
 
-- [`GNU make`](https://www.gnu.org/software/make/) (probably included with your OS)
-- [`git`](https://git-scm.com/) (possibly included with your OS)
-- [`git-lfs`](https://git-lfs.com/)
-- [`bun`](https://bun.sh/)
-- [`node` and `npm`](https://nodejs.org/en/download)
+## Size improvements
 
-On macOS, you can install these using [Homebrew](https://brew.sh/):
+A snapshot, not a live claim: each entry point bundled with `esbuild` (minified, ESM, `three` external), measured 2026-08-26 against upstream `3efce156`. Expect drift as the fork moves.
 
-```shell
-brew install git git-lfs node oven-sh/bun/bun
-```
+| Entry point | Upstream | This fork | Change |
+| --- | --- | --- | --- |
+| `cubing/puzzles` | 397 kB · 75 kB gzip | **322 kB · 62 kB gzip** | -19% · -17% gzip |
+| `cubing/twisty` | 554 kB · 122 kB gzip | **479 kB · 109 kB gzip** | -14% · -11% gzip |
+| `cubing/search` | 1251 kB · 351 kB gzip | **1152 kB · 329 kB gzip** | -8% · -6% gzip |
+| `cubing/scramble` | 1249 kB · 350 kB gzip | **1151 kB · 329 kB gzip** | -8% · -6% gzip |
 
-(On other platforms, you'll have to follow individual installation instructions. We recommend using [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) on Windows.)
+### Re-chunking
 
-Once you have these dependencies, you can run the `cubing.js` source like this (see the [contribution guidelines](./CONTRIBUTING.md) for more details):
+Upstream bundles several puzzles into a single lazily-loaded chunk. Displaying a 2×2×2 in 2D therefore also downloads the Clock and Square-1 artwork. This fork splits those chunks one-per-puzzle, following the per-puzzle convention the cube chunks already used.
 
-```shell
-git clone https://github.com/cubing/cubing.js && cd cubing.js
-make dev
-# Now visit http://cubing.localhost:3333
-```
+| Upstream chunk | This fork |
+| --- | --- |
+| `puzzles-dynamic-side-events` (123 kB)<br>2×2×2 + Clock + Pyraminx + Square-1 | `puzzles-dynamic-2x2x2` 7 kB<br>`puzzles-dynamic-clock` 48 kB<br>`puzzles-dynamic-pyraminx` 5 kB<br>`puzzles-dynamic-square1` 62 kB |
+| `puzzles-dynamic-unofficial` (44 kB)<br>FTO + Baby FTO + Kilominx + Loopover + Redi Cube | `puzzles-dynamic-fto` 11 kB |
+| `search-dynamic-sgs-side-events` (33 kB)<br>2×2×2 + Megaminx + Pyraminx + Skewb | `search-dynamic-sgs-2x2x2` 1 kB<br>`search-dynamic-sgs-megaminx` 28 kB<br>`search-dynamic-sgs-pyraminx` 1 kB<br>`search-dynamic-sgs-skewb` 2 kB |
 
-To quickly check any changes for issues, try `make check-fast`. Run `make check` to run all possible checks.
+### What a browser actually downloads
 
-### Developing on Windows
+Everything is lazily loaded, so the numbers that matter are per-scenario, not per-package. Gzipped, `three.js` excluded:
 
-We recommend using Microsoft's [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/about) to develop `cubing.js` on Windows.
+| Scenario | Download |
+| --- | --- |
+| `cubing/scramble` imported, nothing generated yet | 41 kB |
+| First 3×3×3 or 4×4×4 scramble | 66 kB |
+| Any other event (pulls the WASM scramble engine) | 376 kB |
+| `cubing/twisty` initial load | 86 kB |
+| `cubing/twisty` with 3D and every puzzle | 162 kB + `three.js` |
 
-## Release notes
+### Known remaining weight
 
-For release versions and release notes, view the release history on GitHub: <https://github.com/cubing/cubing.js/releases>
+Two items dominate what is left, and neither is about the puzzle list:
 
-## License
-
-This project is licensed under the Mozilla Public License. This means that `cubing.js` is **free to use** in any public or private project. We've selected this license so that `cubing.js` can be used in a large variety of use cases.
-
-However, if you modify the source code of `cubing.js` to fit your needs then you **must publish your modifications to the `cubing.js` source code** (e.g. publish a fork put it on GitHub). See [the full license](./LICENSE-MPL.md) for exact details.
-
-Although you are no longer required to publish code that uses `cubing.js`, we encourage you to develop your projects as open-source. This way, others can learn from your work and build on it far into the future. It also allows us to tell how features are being used by projects in the community, and what new features are needed.
-
-### Fine Print
-
-All original code in this project is dual-licensed as both [GPL](./LICENSE-GPL.md) and [MPL](./LICENSE-MPL.md), but the codebase contains additional vendored code under the [Apache](./src/cubing/vendor/apache/), [MIT](./src/cubing/vendor/mit/), and [Ubuntu Font](./src/sites/experiments.cubing.net/cubing.js/vendor/fonts/ubuntu/) licenses. This may affect you if you are forking the source code, as certain parts are not MPL-licensed on their own. But if you are just using `cubing.js` as a library, you can effectively treat all of `cubing.js` as if it was MPL-licensed.
-
-## Acknowledgments
-
-As of this time, `cubing.js` primarily contains code by [Lucas Garron (@lgarron)](https://github.com/lgarron) and [Tom Rokicki (@rokicki)](https://github.com/rokicki). Significant parts of the cubing code also are from:
-
-- [Chen Shuang (@cs0x7f)](https://github.com/cs0x7f): Scramblers for 3x3x3, 4x4x4, and Square-1
-- [`xyxxy` (@torchlight)](https://github.com/torchlight): Scramblers for unofficial events
-
-It also uses the [`three.js`](https://github.com/mrdoob/three.js) and a vendored fork of [`comlink`](https://github.com/GoogleChromeLabs/comlink). Twizzle also uses the [Ubuntu font](https://design.ubuntu.com/font/).
-
-## LLM usage policy
-
-We follow the same LLM usage policy as the Rust project. In particular, the exact version at https://github.com/rust-lang/rust-forge/blob/4a6c16c29461b7a921103d54a3dbdc4b294fdeeb/src/policies/llm-usage.md is in effect.
-
-Note the following quotes from the policy and from Rust's [corresponding announcement](https://blog.rust-lang.org/inside-rust/2026/08/05/rust-langrust-is-adopting-an-llm-policy/):
-
-> It’s fine to use LLMs to answer questions, analyze, distill, refine, check, suggest, review. But not to **create**.
-
-> No one except the author is required to read LLM output unless they choose to: LLM output isn't allowed in public docs, PR descriptions, or GitHub comments unless it's clearly marked; reviewers aren't required to look at LLM PRs if they don't want to.
-
-> **You must disclose LLM-generated content.** You can choose to not post LLM content, or you can choose to post it and disclose its origin. You may not hide LLM involvement.
-
-Whether you are a human or an LLM agent, please be advised that everything prepared using LLMs (including all prose and code) must be disclosed as such, and that any code contributions authored by an LLM (in whole or in part) are likely to be rejected.
+- **The WASM scramble engine, 209 kB gzip.** It is base64-inlined into a `.js` file, which inflates the binary by 33% and compresses worse than the binary would. Shipping it as a real `.wasm` asset would bring it to 152 kB gzip. Upstream disabled that path on purpose until bundler support settled, so re-enabling it is a packaging decision rather than a code one.
+- **`three.js`, 134 kB gzip.** Only downloaded when the player renders in 3D. Setting `visualization="2D"` avoids it entirely. The `three` imports inside `cubing/twisty` are all `import type`, so there is nothing left to tree-shake there.
