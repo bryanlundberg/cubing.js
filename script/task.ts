@@ -62,6 +62,9 @@ function bunRun(script: string, args: Args = []): Promise<void> {
  * `-S` with `interpreter executable "-S" not found in %PATH%`. The
  * `node_modules/.bin/…` shims themselves work fine on every platform, and every
  * package below is a declared dev dependency, so we use those directly.
+ *
+ * These shims run under `node`. For the tools that need bun's resolver instead,
+ * see {@link bunBinRun}.
  */
 async function localBin(name: string): Promise<Path> {
   const path = new Path("./node_modules/.bin").join(
@@ -75,6 +78,36 @@ function binRun(name: string, args: Args = []): Promise<void> {
   return localBin(name).then((bin) => run(bin, args));
 }
 
+/**
+ * Runs a dev dependency's bin under `bun` instead of through its
+ * `node_modules/.bin/…` shim (which `node` executes).
+ *
+ * Required in three cases:
+ *
+ * - the bin is itself TypeScript (`bun-dedupe`);
+ * - the bin has a `#!/usr/bin/env -S bun run --` shebang, which bun's Windows
+ *   shim cannot interpret (`@cubing/dev-config`);
+ * - the tool loads a TypeScript config that uses extensionless intra-repo
+ *   imports (`tsdown` loading `tsdown.config.ts`).
+ *
+ * `node` rejects all three. This is what `bun-dx` used to give us for every
+ * tool. Every other bin here runs fine under `node` via {@link localBin}.
+ */
+async function bunBinRun(
+  packageName: string,
+  binName: string,
+  args: Args = [],
+): Promise<void> {
+  const packageDir = new Path("./node_modules").join(packageName);
+  const packageJSONPath = packageDir.join("package.json");
+  await needPath(packageJSONPath, "bun run task setup");
+  const { bin } = await packageJSONPath.readJSON<{
+    bin: string | Record<string, string>;
+  }>();
+  const relativeBinPath = typeof bin === "string" ? bin : bin[binName]!;
+  await run("bun", ["run", "--", packageDir.join(relativeBinPath), ...args]);
+}
+
 async function rmRF(...paths: string[]): Promise<void> {
   await Promise.all(paths.map((path) => new Path(path).rm_rf()));
 }
@@ -82,7 +115,10 @@ async function rmRF(...paths: string[]): Promise<void> {
 async function glob(pattern: string, cwd = "."): Promise<string[]> {
   const matches: string[] = [];
   for await (const match of new Bun.Glob(pattern).scan({ cwd })) {
-    matches.push(match);
+    // `Bun.Glob` yields native separators, but tools we pass these to reject
+    // backslashes (`typedoc`: "Glob inputs to TypeDoc may not use Windows path
+    // separators"). Forward slashes work on every platform.
+    matches.push(match.replaceAll("\\", "/"));
   }
   return matches.sort();
 }
@@ -192,7 +228,7 @@ To list every task, run:
   "build-lib-types": {
     deps: ["update-dependencies"],
     run: async () => {
-      await binRun("tsdown");
+      await bunBinRun("tsdown", "tsdown");
       await bunRun("./script/build/types/fix-web-bluetooth-reference.ts");
     },
   },
@@ -532,15 +568,27 @@ If you want the best "bang for your buck" without running everything, run:
   },
   "check-package.json": {
     deps: ["build-lib-js", "build-lib-types", "build-bin"],
-    run: () => binRun("package.json", ["check"]),
+    run: async () => {
+      if (WINDOWS) {
+        // `@cubing/dev-config` unpacks the tarball into a temp dir and then
+        // calls `Path.resolve(…, extractedRoot)`, but `path-class` does not
+        // consider a Windows path (`C:\…`) absolute, so it throws. CI runs this
+        // check on Linux, where it works.
+        console.warn(
+          "⚠️  Skipping `check-package.json` on Windows: `@cubing/dev-config` cannot resolve Windows paths. Run it on macOS, Linux, or WSL.",
+        );
+        return;
+      }
+      await bunBinRun("@cubing/dev-config", "package.json", ["check"]);
+    },
   },
   "check-for-duplicate-dependencies": {
     deps: ["update-dependencies"],
-    run: () => binRun("dedupe", ["--check"]),
+    run: () => bunBinRun("bun-dedupe", "dedupe", ["--check"]),
   },
   "fix-duplicate-dependencies": {
     deps: ["update-dependencies"],
-    run: () => binRun("dedupe"),
+    run: () => bunBinRun("bun-dedupe", "dedupe"),
   },
 
   // ── Publishing ───────────────────────────────────────────────────────────
