@@ -24,7 +24,7 @@ export class Twisty3DPuzzleWrapper extends EventTarget implements Schedulable {
     void this.twisty3DPuzzle(); // Start constructing.
 
     // TODO: Hook up listeners before loading the heavy code in the async constructor, so we get any intermediate updates?
-    // Repro: Switch to 40x40x40 a fraction of a second before animation finishes. When it's loaded the itmeline is at the end, but the 40x40x40 is rendered with an earlier position.
+    // Repro: Switch to a big cube a fraction of a second before animation finishes. When it's loaded the itmeline is at the end, but the puzzle is rendered with an earlier position.
 
     this.#freshListenerManager.addListener(
       this.model.puzzleLoader,
@@ -197,7 +197,7 @@ export class Twisty3DPuzzleWrapper extends EventTarget implements Schedulable {
           this.puzzleLoader,
           hintFacelets === "auto" ? "floating" : hintFacelets,
           faceletScale,
-          this.puzzleLoader.id === "kilominx", // TODO: generalize to other puzzles
+          false, // `darkIgnoredOrbits`. TODO: generalize per puzzle.
         );
         // TODO: Figure out how to do this in one place using the listener.
         pg3d.then((p) =>
