@@ -1,7 +1,6 @@
 console.log("loading…");
 
 import { Alg } from "../../../../../cubing/alg";
-import { solutionAlg } from "../../stress-tests/40x40x40-solve.js";
 import { default as init, internal_init, invert_alg } from "./cubing_rust_wasm";
 
 console.log("Initializating WASM");
@@ -56,10 +55,3 @@ U // AUF
 // from http://cubesolv.es/solve/5757`;
   input.dispatchEvent(new CustomEvent("input"));
 });
-document
-  .getElementById("use-40x40x40x40-solution")!
-  .addEventListener("click", async () => {
-    const alg = solutionAlg;
-    input.value = alg.toString();
-    input.dispatchEvent(new CustomEvent("input"));
-  });
