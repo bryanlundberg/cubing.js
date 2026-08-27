@@ -33,6 +33,9 @@ export class VisualizationStrategyProp extends TwistyPropDerived<
           case "auto":
           case "3D":
             return "Square1_3D";
+          case "experimental-2D-LL":
+          case "experimental-2D-LL-face":
+            return "experimental-2D-LL";
           default:
             return "2D";
         }
