@@ -56,8 +56,6 @@ These puzzles are gone from `puzzles`, from `PuzzleID`, and from the `<twisty-pl
 - The `stress-tests/40x40x40` demo page is deleted, along with its 379 kB solution file.
 - Dynamic chunk entry points were renamed (see [Re-chunking](#re-chunking)). This only matters if you were importing internal `puzzles-dynamic-*` paths directly, which is not part of the public API.
 
-`cubing/puzzle-geometry` is deliberately **not** trimmed: its puzzle catalogue is public API and only costs a few kB of strings.
-
 ## What this fork adds
 
 - **Square-1 in 3D.** New `Square1_3D` visualization strategy, now the default for `puzzle="square1"`. Upstream always rendered Square-1 flat.
@@ -65,6 +63,21 @@ These puzzles are gone from `puzzles`, from `PuzzleID`, and from the `<twisty-pl
 - **Better 2D Square-1 rendering.** Piece separator support in the SVG renderer: outlines between two halves of a piece hide and reappear as pieces join and split.
 - **5×5×5 2D last-layer diagrams.** `visualization="experimental-2D-LL"` on `5x5x5`, with a cached SVG built from reusable `<use>` elements.
 - **`L2E` stickering.** Last two edges, for `4x4x4`, `5x5x5` and `6x6x6`, under the Reduction group.
+
+## Rendering performance
+
+Several per-frame code paths in `cubing/twisty` were doing work that could be skipped. Measured on Chromium as the cost of one `onPositionChange(…)` call with a move in progress (minimum of 7 rounds of 3000 calls), 2026-08-27.
+
+| Puzzle | Renderer | Upstream | This fork | Change |
+| --- | --- | --- | --- | --- |
+| 3×3×3 | `Cube3D` | 11.17 µs | **3.87 µs** | -65% |
+| 7×7×7 | `PG3D` | 4.13 µs | **2.27 µs** | -45% |
+| 5×5×5 | `PG3D` | 2.63 µs | **2.00 µs** | -24% |
+| Megaminx | `PG3D` | 2.80 µs | **2.20 µs** | -21% |
+| FTO | `PG3D` | 1.93 µs | **1.70 µs** | -12% |
+| 2×2×2 | `PG3D` | 1.40 µs | **1.27 µs** | -9% |
+
+These are small in absolute terms on desktop: a 3×3×3 player drops from roughly 0.67 ms to 0.23 ms of main-thread time per second of animation. It matters for pages with many diagrams, for low-end mobile, and for apps whose main thread is already busy.
 
 ## Size improvements
 
