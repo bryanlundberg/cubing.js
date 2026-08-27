@@ -107,31 +107,6 @@ export const twizzleEvents: Record<string, EventInfo> = {
     eventName: "Face-Turning Octahedron",
     scramblesImplemented: "random-state",
   },
-  master_tetraminx: {
-    puzzleID: "master_tetraminx",
-    eventName: "Master Tetraminx",
-    scramblesImplemented: "random-state",
-  },
-  kilominx: {
-    puzzleID: "kilominx",
-    eventName: "Kilominx",
-    scramblesImplemented: "random-state",
-  },
-  redi_cube: {
-    puzzleID: "redi_cube",
-    eventName: "Redi Cube",
-    scramblesImplemented: "random-state",
-  },
-  baby_fto: {
-    puzzleID: "baby_fto",
-    eventName: "Baby FTO",
-    scramblesImplemented: "random-state",
-  },
-  loopover: {
-    puzzleID: "loopover",
-    eventName: "Loopover",
-    scramblesImplemented: null,
-  },
 };
 
 /** @category Event Info */
