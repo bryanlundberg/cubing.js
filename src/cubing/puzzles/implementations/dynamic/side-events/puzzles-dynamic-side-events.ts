@@ -9,5 +9,6 @@ export { melindas2x2x2x2OrbitSVG } from "./melindas2x2x2x2.kpuzzle.svg";
 export { pyraminxSVG } from "./pyraminx.kpuzzle.svg";
 export { sq1HyperOrbitJSON } from "./sq1-hyperorbit.kpuzzle.json";
 export { sq1HyperOrbitSVG } from "./sq1-hyperorbit.kpuzzle.svg";
+export { sq1HyperOrbitLLSVG } from "./sq1-hyperorbit-ll.kpuzzle.svg";
 export { triQuadJSON } from "./tri_quad.kpuzzle.json";
 export { triQuadSVG } from "./tri_quad.kpuzzle.svg";
