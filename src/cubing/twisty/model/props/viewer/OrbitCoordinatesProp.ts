@@ -106,10 +106,8 @@ export function defaultCameraOrbitCoordinates(
   } else {
     switch (puzzleID) {
       case "megaminx":
-      case "gigaminx":
         return megaminxCameraOrbitCoordinates;
       case "pyraminx":
-      case "master_tetraminx":
         return pyraminxCameraOrbitCoordinates;
       case "skewb":
         return cubePG3DCameraOrbitCoordinates;
