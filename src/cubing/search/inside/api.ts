@@ -20,11 +20,8 @@ import {
   random444Scramble,
 } from "./solve/puzzles/4x4x4";
 import { randomFTOScramble } from "./solve/puzzles/fto";
-import { randomKilominxScramble } from "./solve/puzzles/kilominx";
-import { randomMasterTetraminxScramble } from "./solve/puzzles/master_tetraminx";
 import { solveMegaminx } from "./solve/puzzles/megaminx";
 import { solvePyraminx } from "./solve/puzzles/pyraminx";
-import { randomRediCubeScramble } from "./solve/puzzles/redi_cube";
 import { solveSkewb } from "./solve/puzzles/skewb";
 import {
   type TwipsOptions,
@@ -102,10 +99,7 @@ async function randomScrambleForEvent(
     }
 
     function twipsOverride(): Promise<Alg> | undefined {
-      if (
-        DEBUG_FORCE_TWIPS_FOR_SCRAMBLES &&
-        (eventID in wcaEvents || ["kilominx"].includes(eventID))
-      ) {
+      if (DEBUG_FORCE_TWIPS_FOR_SCRAMBLES && eventID in wcaEvents) {
         console.log(`Using \`twips\` override for \`${eventID}\` scramble.`);
         return wasm();
       }
@@ -133,13 +127,9 @@ async function randomScrambleForEvent(
       case "skewb":
       case "sq1":
       // case "444bf":
-      case "555bf":
       // case "333mbf":
       // case "fto":
-      // case "master_tetraminx":
-      // case "kilominx":
-      // case "redi_cube":
-      case "baby_fto":
+      case "555bf":
         return wasm();
       case "333":
       case "333oh":
@@ -170,22 +160,6 @@ async function randomScrambleForEvent(
         );
       case "fto":
         return measurePerf("randomFTOScramble", randomFTOScramble, {
-          isPrefetch: options?.isPrefetch,
-        });
-      case "master_tetraminx":
-        return measurePerf(
-          "randomMasterTetraminxScramble",
-          randomMasterTetraminxScramble,
-        );
-      case "kilominx":
-        return (
-          twipsOverride() ??
-          measurePerf("randomKilominxScramble", randomKilominxScramble, {
-            isPrefetch: options?.isPrefetch,
-          })
-        );
-      case "redi_cube":
-        return measurePerf("randomRediCubeScramble", randomRediCubeScramble, {
           isPrefetch: options?.isPrefetch,
         });
       default:
