@@ -96,37 +96,7 @@ const puzzleData: Partial<
     optgroup: OptGroup.WCAMore,
     symbol: GeometrySymbol.Diamond,
   },
-  gigaminx: { optgroup: OptGroup.Other, symbol: GeometrySymbol.Pentagon },
   fto: { optgroup: OptGroup.Other, symbol: GeometrySymbol.TriangleDown },
-  master_tetraminx: {
-    optgroup: OptGroup.Other,
-    symbol: GeometrySymbol.TriangleUp,
-  },
-  kilominx: {
-    optgroup: OptGroup.Other,
-    symbol: GeometrySymbol.Pentagon,
-  },
-  redi_cube: {
-    "2D": true,
-    optgroup: OptGroup.Other,
-    symbol: GeometrySymbol.Square,
-  },
-  baby_fto: { optgroup: OptGroup.Other, symbol: GeometrySymbol.TriangleDown },
-  melindas2x2x2x2: {
-    "2D": true,
-    optgroup: OptGroup.Other,
-    symbol: GeometrySymbol.Square,
-  },
-  tri_quad: {
-    "2D": true,
-    optgroup: OptGroup.Other,
-    symbol: GeometrySymbol.Square,
-  },
-  loopover: {
-    "2D": true,
-    optgroup: OptGroup.Other,
-    symbol: GeometrySymbol.Square,
-  },
 };
 
 const puzzleGroups: Record<string, { name: string; symbol: string }[]> = {};
