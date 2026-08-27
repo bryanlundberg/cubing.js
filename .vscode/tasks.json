@@ -2,43 +2,43 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "type": "npm",
-      "script": "dev",
+      "type": "shell",
+      "command": "bun run task dev",
       "problemMatcher": [],
-      "label": "make dev",
-      "detail": "make dev",
+      "label": "dev",
+      "detail": "bun run task dev",
       "group": {
         "kind": "build",
         "isDefault": true
       }
     },
     {
-      "type": "npm",
-      "script": "build",
+      "type": "shell",
+      "command": "bun run task build",
       "problemMatcher": [],
-      "label": "make build",
-      "detail": "make build"
+      "label": "build",
+      "detail": "bun run task build"
     },
     {
-      "type": "npm",
-      "script": "test",
+      "type": "shell",
+      "command": "bun run task test",
       "problemMatcher": [],
-      "label": "make test",
-      "detail": "make test"
+      "label": "test",
+      "detail": "bun run task test"
     },
     {
-      "type": "npm",
-      "script": "clean",
+      "type": "shell",
+      "command": "bun run task clean",
       "problemMatcher": [],
-      "label": "make clean",
-      "detail": "make clean"
+      "label": "clean",
+      "detail": "bun run task clean"
     },
     {
-      "type": "npm",
-      "script": "format",
+      "type": "shell",
+      "command": "bun run task format",
       "problemMatcher": [],
-      "label": "make format",
-      "detail": "make format"
+      "label": "format",
+      "detail": "bun run task format"
     }
   ]
 }
