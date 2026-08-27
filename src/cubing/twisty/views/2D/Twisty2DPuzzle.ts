@@ -1,4 +1,5 @@
-import type { KPuzzle } from "../../../kpuzzle";
+import type { Move } from "../../../alg";
+import type { KPattern, KPuzzle } from "../../../kpuzzle";
 import type { ExperimentalStickeringMask } from "../../../puzzles/cubing-private";
 import type { PuzzleLoader } from "../../../puzzles/PuzzleLoader";
 import type { StickeringMask } from "../../../puzzles/stickerings/mask";
@@ -78,20 +79,45 @@ export class Twisty2DPuzzle
     this.#freshListenerManager.disconnect();
   }
 
+  // Only the `fraction` of a move in progress changes from frame to frame, so
+  // the destination pattern is recomputed once per move rather than per frame.
+  #cachedTargetPattern: {
+    pattern: KPattern;
+    move: Move;
+    direction: Direction;
+    target: KPattern;
+  } | null = null;
+
+  #targetPattern(position: PuzzlePosition): KPattern {
+    const { move, direction } = position.movesInProgress[0];
+    const cached = this.#cachedTargetPattern;
+    if (
+      cached &&
+      cached.pattern === position.pattern &&
+      cached.move === move &&
+      cached.direction === direction
+    ) {
+      return cached.target;
+    }
+    const partialMove =
+      direction === Direction.Backwards ? move.invert() : move;
+    const target = position.pattern.applyMove(partialMove);
+    this.#cachedTargetPattern = {
+      pattern: position.pattern,
+      move,
+      direction,
+      target,
+    };
+    return target;
+  }
+
   onPositionChange(position: PuzzlePosition): void {
     try {
       if (position.movesInProgress.length > 0) {
-        const move = position.movesInProgress[0].move;
-
-        let partialMove = move;
-        if (position.movesInProgress[0].direction === Direction.Backwards) {
-          partialMove = move.invert();
-        }
-        const newPattern = position.pattern.applyMove(partialMove);
         // TODO: move to render()
         this.svgWrapper?.draw(
           position.pattern,
-          newPattern,
+          this.#targetPattern(position),
           position.movesInProgress[0].fraction,
         );
       } else {
