@@ -13,16 +13,16 @@ export const square1: PuzzleLoader = {
   kpuzzle: getCached(
     async () =>
       new KPuzzle(
-        (await import("../dynamic/side-events/puzzles-dynamic-side-events"))
+        (await import("../dynamic/square1/puzzles-dynamic-square1"))
           .sq1HyperOrbitJSON,
       ),
   ),
   svg: getCached(async () => {
-    return (await import("../dynamic/side-events/puzzles-dynamic-side-events"))
+    return (await import("../dynamic/square1/puzzles-dynamic-square1"))
       .sq1HyperOrbitSVG;
   }),
   llSVG: getCached(async () => {
-    return (await import("../dynamic/side-events/puzzles-dynamic-side-events"))
+    return (await import("../dynamic/square1/puzzles-dynamic-square1"))
       .sq1HyperOrbitLLSVG;
   }),
   stickeringMask: async (
