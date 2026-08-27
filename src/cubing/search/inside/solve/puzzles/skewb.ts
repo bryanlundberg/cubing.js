@@ -3,7 +3,7 @@ import { KPattern } from "../../../../kpuzzle";
 import { mustBeInsideWorker } from "../../inside-worker";
 import type { SGSCachedData } from "../parseSGS";
 import { TrembleSolver } from "../tremble";
-import { searchDynamicSideEvents } from "./dynamic/sgs-side-events";
+import { searchDynamicSGSskewb } from "./dynamic/sgs-skewb";
 
 const TREMBLE_DEPTH = 3;
 
@@ -13,10 +13,10 @@ async function getCachedTrembleSolver(): Promise<TrembleSolver> {
     cachedTrembleSolver ||
     (cachedTrembleSolver = (async (): Promise<TrembleSolver> => {
       const json: SGSCachedData = await (
-        await searchDynamicSideEvents
+        await searchDynamicSGSskewb
       ).sgsDataSkewb();
       return new TrembleSolver(
-        await (await searchDynamicSideEvents).skewbKPuzzleWithoutMOCached(),
+        await (await searchDynamicSGSskewb).skewbKPuzzleWithoutMOCached(),
         json,
         "RLUB".split(""),
       );
@@ -30,7 +30,7 @@ export async function preInitializeSkewb(): Promise<void> {
 
 async function resetCenterOrientation(pattern: KPattern): Promise<KPattern> {
   return new KPattern(
-    await (await searchDynamicSideEvents).skewbKPuzzleWithoutMOCached(),
+    await (await searchDynamicSGSskewb).skewbKPuzzleWithoutMOCached(),
     {
       CORNERS: pattern.patternData["CORNERS"],
       CENTERS: {
