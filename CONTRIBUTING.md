@@ -31,7 +31,7 @@ To work on the `cubing.js` source code, you'll need to install [`node`](https://
 
 ```shell
 git clone https://github.com/cubing/cubing.js && cd cubing.js
-make dev
+bun run task dev
 ```
 
 This should install a few dependencies and start the server, after which you can open <http://cubing.localhost:3333/>. Some tips:
@@ -39,7 +39,7 @@ This should install a few dependencies and start the server, after which you can
 The core library code for `cubing.js` is in [`src/cubing`](./src/cubing/). To test changes, use:
 
 ```shell
-make test
+bun run task test
 ```
 
 - See [`src/README.md`](./src/README.md) for the source code structure.
@@ -68,6 +68,6 @@ Some examples of what this means:
   - If you're only drawing 2D puzzles, you shouldn't have to load the (fairly sizable) 3D code.
   - If you just need to draw freeze frames (like VisualCube), you should be able to use `<twisty-player>` without worrying about the "extra work" it does to prepare for animation.
 - For speed or simplicity, it is often valuable to require features that are only available in modern browsers/environments. In general, we are willing to require the most recent version of a modern browser, as long as the relevant feature is available across Chromium-based browsers (including Edge), Firefox, and Safari. We don't support Internet Explorer or Edge Spartan.
-- Development of `cubing.js` should be simple and fast. The entire codebase is plain TypeScript. `make dev` takes a fraction of a section to start, as do full production builds and linting/formatting. We still have to use some slow tools, but we prefer to avoid them unless there are no reasonable good, fast alternatives. This is important because it can narrow the gap of what you can test in development, vs. what we test in full CI. The more that can be tested quickly (locally), the fewer surprises there will be when contributing code.
+- Development of `cubing.js` should be simple and fast. The entire codebase is plain TypeScript. `bun run task dev` takes a fraction of a section to start, as do full production builds and linting/formatting. We still have to use some slow tools, but we prefer to avoid them unless there are no reasonable good, fast alternatives. This is important because it can narrow the gap of what you can test in development, vs. what we test in full CI. The more that can be tested quickly (locally), the fewer surprises there will be when contributing code.
 
 In addition, it's valuable to apply some of these principles to the codebase itself. For example, we try to make it as easy as possible to get started, and generally use more verbose names when a shorter name could be ambiguous.
