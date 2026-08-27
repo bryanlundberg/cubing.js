@@ -14,7 +14,7 @@ import { SwipeGrid, type ThemeType, themes } from "./SwipeGrid";
 
 const DEFAULT_THEME: ThemeType = "transparent-grid";
 
-const megaminxAndKilominx = [
+const megaminxMoveMap = [
   ["", "U'", "U2'", "L", "dl", "u'", "L2", "", "/enter"],
   ["U", "", "U'", "BL", "Rv'", "BR'", "BL2", "Rv2'", "BR2'"],
   ["U2", "U", "", "u", "dr'", "R'", "Fv'", "", "R2'"],
@@ -26,7 +26,7 @@ const megaminxAndKilominx = [
   ["/space", "BR2", "R2", "F2'", "d'", "F'", "D'", "FR'", ""],
 ];
 
-const ftoAndBabyFTO = [
+const ftoMoveMap = [
   ["", "U'", "U2'", "L", "l", "u'", "L2", "2L2", "/enter"],
   ["U", "", "U'", "BL", "Rv'", "BR'", "BL2", "Rv2'", "BR2'"],
   ["U2", "U", "", "u", "r'", "R'", "Fv'", "2R2'", "R2'"],
@@ -83,21 +83,8 @@ export const moveMaps: Record<PuzzleID, string[][]> = {
     ["2L2'", "Rv2", "2R2", "2L'", "Lv'", "2R", "D'", "", "D"],
     ["/space", "B2", "R2", "F2'", "d'", "F'", "D2'", "D'", ""],
   ],
-  fto: ftoAndBabyFTO,
-  megaminx: megaminxAndKilominx,
-  kilominx: megaminxAndKilominx,
-  baby_fto: ftoAndBabyFTO,
-  tri_quad: [
-    ["", "U'", "U2'", "", "", "", "", "", "/enter"],
-    ["U", "", "U'", "", "", "", "", "", ""],
-    ["U2", "U", "", "", "", "R'", "/backspace", "", "R2'"],
-    ["", "", "", "", "", "", "", "", ""],
-    ["", "", "", "", "", "", "", "", ""],
-    ["", "", "R", "", "", "", "", "", ""],
-    ["", "", "", "", "", "", "", "", ""],
-    ["", "", "", "", "", "", "", "", ""],
-    ["/space", "", "R2", "", "", "", "", "", ""],
-  ],
+  fto: ftoMoveMap,
+  megaminx: megaminxMoveMap,
 };
 
 export type Action = "space" | "enter" | "backspace";
