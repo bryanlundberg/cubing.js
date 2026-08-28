@@ -35,7 +35,7 @@ await build({
   sourcemap: true,
   splitting: true,
   packages: "external",
-  external: ["cubing/*"],
+  external: ["@rednaxela101/cubing/*"],
   supported: {
     "top-level-await": true,
   },

@@ -38,10 +38,10 @@ import {
   withDefault,
 } from "@optique/core";
 import { run } from "@optique/run";
-import type { Alg } from "cubing/alg";
-import { eventInfo, twizzleEvents } from "cubing/puzzles";
-import { randomScrambleForEvent } from "cubing/scramble";
-import { setSearchDebug } from "cubing/search";
+import type { Alg } from "@rednaxela101/cubing/alg";
+import { eventInfo, twizzleEvents } from "@rednaxela101/cubing/puzzles";
+import { randomScrambleForEvent } from "@rednaxela101/cubing/scramble";
+import { setSearchDebug } from "@rednaxela101/cubing/search";
 import { packageVersion } from "../metadata/packageVersion";
 
 const outputFormats = ["auto", "text", "link", "json-text"] as const;

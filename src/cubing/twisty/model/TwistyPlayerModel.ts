@@ -84,8 +84,8 @@ export class TwistyPlayerModel {
    * Usage example:
    *
    * ```ts
-   * import { Move, Pause } from "cubing/alg";
-   * import { TwistyPlayer } from "cubing/twisty";
+   * import { Move, Pause } from "@rednaxela101/cubing/alg";
+   * import { TwistyPlayer } from "@rednaxela101/cubing/twisty";
    *
    * const player = document.body.appendChild(new TwistyPlayer());
    * player.alg = "R U' D2 R'";

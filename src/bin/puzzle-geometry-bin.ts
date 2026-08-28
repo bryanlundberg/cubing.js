@@ -44,13 +44,13 @@ import {
   string,
 } from "@optique/core";
 import { run } from "@optique/run";
-import { Move } from "cubing/alg";
+import { Move } from "@rednaxela101/cubing/alg";
 import {
   type ExperimentalPuzzleGeometryOptions,
   getPG3DNamedPuzzles,
   PuzzleGeometry,
   parsePuzzleDescription,
-} from "cubing/puzzle-geometry";
+} from "@rednaxela101/cubing/puzzle-geometry";
 import { PrintableShellCommand } from "printable-shell-command";
 import { packageVersion } from "../metadata/packageVersion";
 

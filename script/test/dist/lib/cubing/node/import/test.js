@@ -1,14 +1,14 @@
-import * as alg from "cubing/alg";
-import * as bluetooth from "cubing/bluetooth";
-import * as kpuzzle from "cubing/kpuzzle";
-import * as notation from "cubing/notation";
-import * as protocol from "cubing/protocol";
-import * as puzzleGeometry from "cubing/puzzle-geometry";
-import * as puzzles from "cubing/puzzles";
-import * as scramble from "cubing/scramble";
-import * as search from "cubing/search";
-import * as stream from "cubing/stream";
-import * as twisty from "cubing/twisty";
+import * as alg from "@rednaxela101/cubing/alg";
+import * as bluetooth from "@rednaxela101/cubing/bluetooth";
+import * as kpuzzle from "@rednaxela101/cubing/kpuzzle";
+import * as notation from "@rednaxela101/cubing/notation";
+import * as protocol from "@rednaxela101/cubing/protocol";
+import * as puzzleGeometry from "@rednaxela101/cubing/puzzle-geometry";
+import * as puzzles from "@rednaxela101/cubing/puzzles";
+import * as scramble from "@rednaxela101/cubing/scramble";
+import * as search from "@rednaxela101/cubing/search";
+import * as stream from "@rednaxela101/cubing/stream";
+import * as twisty from "@rednaxela101/cubing/twisty";
 
 console.log(alg);
 console.log(bluetooth);

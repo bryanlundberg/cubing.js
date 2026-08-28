@@ -7,13 +7,16 @@ await needPath(
 );
 
 import assert from "node:assert";
-import { Alg } from "cubing/alg";
-import { cube2x2x2 } from "cubing/puzzles";
+import { Alg } from "@rednaxela101/cubing/alg";
+import { cube2x2x2 } from "@rednaxela101/cubing/puzzles";
 import {
   experimentalDeriveScrambleForEvent,
   randomScrambleForEvent,
-} from "cubing/scramble";
-import { experimentalSolveTwips, setSearchDebug } from "cubing/search";
+} from "@rednaxela101/cubing/scramble";
+import {
+  experimentalSolveTwips,
+  setSearchDebug,
+} from "@rednaxela101/cubing/search";
 
 setSearchDebug({ disableStringWorker: true });
 

@@ -6,8 +6,8 @@ await needPath(
   "make build-lib-js",
 );
 
-const { Alg } = await import("cubing/alg");
-const { cube3x3x3 } = await import("cubing/puzzles");
+const { Alg } = await import("@rednaxela101/cubing/alg");
+const { cube3x3x3 } = await import("@rednaxela101/cubing/puzzles");
 
 if (!globalThis.performance) {
   console.log("Setting `globalThis.performance = Date;`");

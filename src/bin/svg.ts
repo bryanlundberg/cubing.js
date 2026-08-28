@@ -28,7 +28,7 @@ import { basename } from "node:path";
 import { argv } from "node:process";
 import { argument, choice, object, option, withDefault } from "@optique/core";
 import { run } from "@optique/run";
-import { puzzles } from "cubing/puzzles";
+import { puzzles } from "@rednaxela101/cubing/puzzles";
 import { packageVersion } from "../metadata/packageVersion";
 
 const args = run(

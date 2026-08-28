@@ -15,7 +15,7 @@ export const mainAllowedImports: AllowedImports = {
       "node:util",
 
       "package.json",
-      "cubing",
+      "@rednaxela101/cubing",
       "src/metadata",
 
       "@optique/core",
@@ -28,7 +28,7 @@ export const mainAllowedImports: AllowedImports = {
       "node-fetch",
       "playwright",
     ],
-    dynamic: ["cubing"],
+    dynamic: ["@rednaxela101/cubing"],
   },
   "script/bin": {
     static: ["src/cubing"],
@@ -58,7 +58,7 @@ export const mainAllowedImports: AllowedImports = {
       "@optique/run",
       "printable-shell-command",
 
-      "cubing",
+      "@rednaxela101/cubing",
       "src/metadata",
     ],
     dynamic: ["node:process"],

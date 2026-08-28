@@ -9,23 +9,23 @@ await needPath(
   "make build-lib-js",
 );
 
-import "cubing/alg";
-import "cubing/bluetooth";
-import "cubing/kpuzzle";
-import "cubing/notation";
-import "cubing/protocol";
-import "cubing/puzzle-geometry";
-import "cubing/puzzles";
-import "cubing/scramble";
-import "cubing/search";
-import "cubing/stream";
-import "cubing/twisty";
+import "@rednaxela101/cubing/alg";
+import "@rednaxela101/cubing/bluetooth";
+import "@rednaxela101/cubing/kpuzzle";
+import "@rednaxela101/cubing/notation";
+import "@rednaxela101/cubing/protocol";
+import "@rednaxela101/cubing/puzzle-geometry";
+import "@rednaxela101/cubing/puzzles";
+import "@rednaxela101/cubing/scramble";
+import "@rednaxela101/cubing/search";
+import "@rednaxela101/cubing/stream";
+import "@rednaxela101/cubing/twisty";
 
-import { setSearchDebug } from "cubing/search";
+import { setSearchDebug } from "@rednaxela101/cubing/search";
 
 setSearchDebug({ scramblePrefetchLevel: "none" });
 
-import { randomScrambleForEvent } from "cubing/scramble";
+import { randomScrambleForEvent } from "@rednaxela101/cubing/scramble";
 
 const eventsOrdered = [
   "444",

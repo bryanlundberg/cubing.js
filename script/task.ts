@@ -26,6 +26,37 @@ import { needPath } from "./lib/needPath.js";
 
 const WINDOWS = platform === "win32";
 
+const args = argv.slice(2);
+
+/**
+ * Skips the `bun install` inside `update-dependencies`.
+ *
+ * Needed when a package manager is already installing this package around us —
+ * notably the `prepare` script that runs when this repo is consumed as a git
+ * dependency. Without this, our `bun install` re-triggers `prepare`, which
+ * recurses until the install dies.
+ */
+const SKIP_DEPENDENCY_INSTALL = args.includes("--no-install");
+
+const NESTED_INSTALL_ENV_VAR = "CUBING_JS_NESTED_INSTALL";
+
+/**
+ * True when this process is the `prepare` script fired by a `bun install` that
+ * we ourselves spawned (from `update-dependencies`).
+ *
+ * The `prepare` script exists so that installing this repo as a git dependency
+ * builds it. But `prepare` also runs on every plain `bun install`, including the
+ * one inside `update-dependencies` — which almost every task depends on. Without
+ * this guard, `bun run task format` would rebuild the whole library first.
+ */
+const NESTED_INSTALL =
+  SKIP_DEPENDENCY_INSTALL && env[NESTED_INSTALL_ENV_VAR] === "1";
+
+const requestedTasks = args.filter((arg) => arg !== "--no-install");
+
+/** `dev` forwards everything after it to the dev server (e.g. a port). */
+const devArgs = requestedTasks[0] === "dev" ? requestedTasks.slice(1) : [];
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -263,7 +294,7 @@ To list every task, run:
   dev: {
     description: "Run the dev server.",
     deps: ["update-dependencies"],
-    run: () => bunRun("./script/build/sites/dev.ts", argv.slice(3)),
+    run: () => bunRun("./script/build/sites/dev.ts", devArgs),
   },
   link: {
     deps: ["build"],
@@ -325,7 +356,18 @@ To reinstall dependencies, run:
   "update-dependencies": {
     deps: ["bun-required"],
     run: async () => {
-      await run("bun", ["install", "--frozen-lockfile"]);
+      if (SKIP_DEPENDENCY_INSTALL) {
+        // A package manager is already installing this package's dependencies
+        // around us (see `--no-install`).
+        console.info("Skipping dependency install (`--no-install`).");
+      } else {
+        // `bun install` fires this package's own `prepare` script. We mark the
+        // environment so that the nested `prepare` returns immediately instead
+        // of rebuilding the library on every single task. See `NESTED_INSTALL`.
+        await run("bun", ["install", "--frozen-lockfile"], {
+          env: { [NESTED_INSTALL_ENV_VAR]: "1" },
+        });
+      }
       await bunRun("./script/check-engine-versions.ts");
     },
   },
@@ -623,11 +665,7 @@ If you want the best "bang for your buck" without running everything, run:
   publish: {
     run: async () => {
       assertExecutableBitSupport();
-      const home = env["HOME"];
-      await run("npm", [
-        "publish",
-        `--globalconfig=${home}/.config/npm/cubing-publish.npmrc`,
-      ]);
+      await run("npm", ["publish"]);
     },
   },
   pack: {
@@ -758,14 +796,14 @@ function listTasks(): void {
   console.log("");
 }
 
-const requestedTasks = argv.slice(2);
-
-if (requestedTasks[0] === "--list" || requestedTasks[0] === "-l") {
+if (NESTED_INSTALL) {
+  // Nothing to do: we are the `prepare` script of an install that one of our
+  // own tasks triggered.
+} else if (requestedTasks[0] === "--list" || requestedTasks[0] === "-l") {
   listTasks();
 } else if (requestedTasks.length === 0) {
   await runTask("default");
 } else if (requestedTasks[0] === "dev") {
-  // `dev` forwards its remaining args (e.g. a port) to the dev server.
   await runTask("dev");
 } else {
   for (const name of requestedTasks) {

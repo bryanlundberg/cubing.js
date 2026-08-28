@@ -28,10 +28,10 @@ import { basename } from "node:path";
 import { argv } from "node:process";
 import { argument, map, message, object, string } from "@optique/core";
 import { run } from "@optique/run";
-import { Alg } from "cubing/alg";
-import { KPuzzle } from "cubing/kpuzzle";
-import { getPuzzleGeometryByName } from "cubing/puzzle-geometry";
-import { puzzles } from "cubing/puzzles";
+import { Alg } from "@rednaxela101/cubing/alg";
+import { KPuzzle } from "@rednaxela101/cubing/kpuzzle";
+import { getPuzzleGeometryByName } from "@rednaxela101/cubing/puzzle-geometry";
+import { puzzles } from "@rednaxela101/cubing/puzzles";
 import { packageVersion } from "../metadata/packageVersion";
 
 const args = run(

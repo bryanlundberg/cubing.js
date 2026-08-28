@@ -1,12 +1,12 @@
 {
-  "name": "cubing",
-  "version": "0.63.5-dev",
-  "description": "A collection of JavaScript cubing libraries.",
+  "name": "@rednaxela101/cubing",
+  "version": "0.63.5",
+  "description": "A slim fork of cubing.js, shipping a reduced puzzle set.",
   "author": "The js.cubing.net team",
   "license": "MPL-2.0 OR GPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cubing/cubing.js.git"
+    "url": "git+https://github.com/bryanlundberg/cubing.js.git"
   },
   "engines-comment": "`node` 22.3.0 and `bun` 1.2.7 are needed for `globalThis.process.getBuiltinModule(…)`, which helps bundlers avoid thinking our `node` shims require packages from a package manager.",
   "engines": {
@@ -102,6 +102,9 @@
     "tsdown": "^0.21.10",
     "typedoc": "^0.28.18"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "./dist/bin/",
     "./dist/lib/",
@@ -112,8 +115,8 @@
     "task": "bun ./script/task.ts",
     "build": "bun ./script/task.ts build",
     "dev": "bun ./script/task.ts dev",
-    "prepublishOnly": "bun ./script/task.ts prepublishOnly",
-    "postpublish": "bun ./script/task.ts postpublish"
+    "prepare": "bun ./script/task.ts --no-install build-lib build-bin",
+    "prepublishOnly": "bun ./script/task.ts prepublishOnly"
   },
   "keywords": [
     "cubing",
