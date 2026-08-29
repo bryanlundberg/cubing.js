@@ -1,5 +1,5 @@
 export const megaminxLLSVG = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="360px" height="343px" viewBox="0 0 360 343" version="1.1">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="397px" height="377px" viewBox="-19 -20 397 377" data-view-box-with-face-color-border="-19 -20 397 377" data-view-box-without-face-color-border="0 0 360 343" version="1.1">
   <title>Megaminx LL</title>
   <defs>
     <g id="bogus">
@@ -7,6 +7,15 @@ export const megaminxLLSVG = `<?xml version="1.0" encoding="UTF-8"?>
     </g>
   </defs>
   <g fill="none" fill-rule="nonzero" stroke="#000">
+    <!-- Static ring naming the face each side of the last layer belongs to. It
+         has no facelet IDs, so the animator leaves it alone. -->
+    <g class="face-color-border-group" style="stroke: black; stroke-width: 6; stroke-linecap: butt; stroke-linejoin: round;">
+      <path style="fill: yellow;" d="M 7.179688 132.089844 L 179.5 6.894531 L 179.5 -16.659671 L -15.221953 124.811063 Z"/>
+      <path style="fill: rgb(34, 102, 255);" d="M 179.5 6.894531 L 351.820312 132.089844 L 374.221953 124.811063 L 179.5 -16.659671 Z"/>
+      <path style="fill: red;" d="M 351.820312 132.089844 L 286 334.664062 L 299.845 353.719929 L 374.221953 124.811063 Z"/>
+      <path style="fill: limegreen;" d="M 286 334.664062 L 73 334.664062 L 59.155 353.719929 L 299.845 353.719929 Z"/>
+      <path style="fill: #660099;" d="M 73 334.664062 L 7.179688 132.089844 L -15.221953 124.811063 L 59.155 353.719929 Z"/>
+    </g>
     <g style="stroke: black; stroke-width: 6; stroke-linecap: butt; stroke-linejoin: round;">
       <path id="CENTERS-l0-o0" style="fill: white;" d="M 179.5 143.480469 L 137.082031 174.296875 L 153.285156 224.164062 L 205.714844 224.164062 L 221.917969 174.296875 Z M 179.5 143.480469 "/>  />
 
@@ -18,15 +27,15 @@ export const megaminxLLSVG = `<?xml version="1.0" encoding="UTF-8"?>
       <path id="EDGES-l26-o1" style="fill: yellow;" d="M 61.527344 92.605469 L 100.851562 121.175781 L 140.175781 92.605469 L 125.15625 46.378906 Z M 61.527344 92.605469 "/> />
 
       <path id="CORNERS-l1-o0" style="fill: white;" d="M 76.546875 195.976562 L 137.082031 174.296875 L 100.851562 121.175781 L 61.527344 149.75 Z M 76.546875 195.976562 "/> />
-      <path id="CORNERS-l1-o1" style="fill: purple;" d="M 27.9375 195.976562 L 76.546875 195.976562 L 61.527344 149.75 L 7.179688 132.089844 Z M 27.9375 195.976562 "/>  />
+      <path id="CORNERS-l1-o1" style="fill: #660099;" d="M 27.9375 195.976562 L 76.546875 195.976562 L 61.527344 149.75 L 7.179688 132.089844 Z M 27.9375 195.976562 "/>  />
       <path id="CORNERS-l1-o2" style="fill: yellow;" d="M 61.527344 149.75 L 100.851562 121.175781 L 61.527344 92.605469 L 7.179688 132.089844 Z M 61.527344 149.75 "/> />
 
       <path id="EDGES-l1-o0" style="fill: white;" d="M 91.566406 242.207031 L 153.285156 224.164062 L 137.082031 174.296875 L 76.546875 195.976562 Z M 91.566406 242.207031 "/> />
-      <path id="EDGES-l1-o1" style="fill: purple;" d="M 52.242188 270.777344 L 91.566406 242.207031 L 76.546875 195.976562 L 27.9375 195.976562 Z M 52.242188 270.777344 "/> />
+      <path id="EDGES-l1-o1" style="fill: #660099;" d="M 52.242188 270.777344 L 91.566406 242.207031 L 76.546875 195.976562 L 27.9375 195.976562 Z M 52.242188 270.777344 "/> />
 
       <path id="CORNERS-l0-o0" style="fill: white;" d="M 155.195312 288.4375 L 153.285156 224.164062 L 91.566406 242.207031 L 106.585938 288.4375 Z M 155.195312 288.4375 "/> />
       <path id="CORNERS-l0-o1" style="fill: limegreen;" d="M 140.175781 334.664062 L 155.195312 288.4375 L 106.585938 288.4375 L 73 334.664062 Z M 140.175781 334.664062 "/>  />
-      <path id="CORNERS-l0-o2" style="fill: purple;" d="M 106.585938 288.4375 L 91.566406 242.207031 L 52.242188 270.777344 L 73 334.664062 Z M 106.585938 288.4375 "/>  />
+      <path id="CORNERS-l0-o2" style="fill: #660099;" d="M 106.585938 288.4375 L 91.566406 242.207031 L 52.242188 270.777344 L 73 334.664062 Z M 106.585938 288.4375 "/>  />
 
       <path id="EDGES-l0-o0" style="fill: white;" d="M 203.804688 288.4375 L 205.714844 224.164062 L 153.285156 224.164062 L 155.195312 288.4375 Z M 203.804688 288.4375 "/>  />
       <path id="EDGES-l0-o1" style="fill: limegreen;" d="M 218.824219 334.664062 L 203.804688 288.4375 L 155.195312 288.4375 L 140.175781 334.664062 Z M 218.824219 334.664062 "/>  />
