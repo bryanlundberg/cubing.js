@@ -83,6 +83,18 @@ export async function cubeLikePuzzleStickering(
       setPLL();
       break;
     }
+    // `PLL-EO` reads the last-layer permutation off the edges alone: the top
+    // face and the corners are blanked out, leaving only the side stickers of
+    // the last-layer edges.
+    case "PLL-EO": {
+      dimF2L();
+      puzzleStickering.set(LL(), PieceStickering.Ignored);
+      puzzleStickering.set(
+        m.and([LL(), EDGES()]),
+        PieceStickering.IgnorePrimary,
+      );
+      break;
+    }
     case "CLS": {
       dimF2L();
       puzzleStickering.set(cornerDFR(), PieceStickering.Regular);
@@ -99,10 +111,22 @@ export async function cubeLikePuzzleStickering(
       setOLL();
       break;
     }
+    // `OLL-EO` is `OLL` with the last-layer corners greyed out, so that only
+    // the last-layer center and edges carry orientation information.
+    case "OLL-EO":
+    // fallthrough
     case "EOLL": {
       dimF2L();
       setOLL();
       puzzleStickering.set(m.and([LL(), CORNERS()]), PieceStickering.Ignored);
+      break;
+    }
+    // The mirror of `OLL-EO`: the last-layer edges are greyed out instead, so
+    // only the last-layer center and corners carry orientation information.
+    case "OLL-CO": {
+      dimF2L();
+      setOLL();
+      puzzleStickering.set(m.and([LL(), EDGES()]), PieceStickering.Ignored);
       break;
     }
     case "COLL": {
