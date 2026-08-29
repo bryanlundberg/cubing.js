@@ -30,24 +30,103 @@ function nextSVGID(): string {
   return `svg${svgCounter.toString()}`;
 }
 
-// TODO: This is hardcoded to 3x3x3 SVGs
-const colorMaps: Partial<
-  Record<FaceletMeshStickeringMask, string | Record<string, string>>
-> = {
-  dim: {
-    white: "#dddddd",
-    orange: "#884400",
-    limegreen: "#008800",
-    red: "#660000",
-    "rgb(34, 102, 255)": "#000088", // TODO
-    yellow: "#888800",
-    "rgb(102, 0, 153)": "rgb(50, 0, 76)",
-    purple: "#3f003f",
-  },
+// Stickering masks that paint a single color regardless of what the facelet
+// looked like on the solved puzzle.
+const flatColors: Partial<Record<FaceletMeshStickeringMask, string>> = {
   oriented: "#44ddcc",
   ignored: "#555555",
   invisible: "#00000000",
 };
+
+// Hand-tuned dim colors for the 3x3x3 palette, kept so those diagrams keep
+// looking exactly the way they always have.
+const explicitDimColors: Record<string, string> = {
+  white: "#dddddd",
+  orange: "#884400",
+  limegreen: "#008800",
+  red: "#660000",
+  "rgb(34, 102, 255)": "#000088", // TODO
+  yellow: "#888800",
+  "rgb(102, 0, 153)": "rgb(50, 0, 76)",
+  purple: "#3f003f",
+};
+
+// Every other palette (e.g. the twelve Megaminx faces) is dimmed by darkening
+// the solved color. Without this, an unlisted color dimmed to `undefined`,
+// which is not a valid `stop-color` and so painted the facelet solid black.
+const DIM_FACTOR = 0.5;
+
+let colorParsingContext: CanvasRenderingContext2D | null | undefined;
+function getColorParsingContext(): CanvasRenderingContext2D | null {
+  if (colorParsingContext === undefined) {
+    try {
+      colorParsingContext = document
+        .createElement("canvas")
+        .getContext("2d") as CanvasRenderingContext2D | null;
+    } catch {
+      colorParsingContext = null;
+    }
+  }
+  return colorParsingContext;
+}
+
+// A canvas is the only CSS color parser guaranteed to agree with what the
+// browser will actually paint, so we round-trip through one.
+function parseColor(color: string): [number, number, number] | null {
+  const ctx = getColorParsingContext();
+  if (!ctx) {
+    return null;
+  }
+  // Assigning an invalid color leaves `fillStyle` untouched, so probe from two
+  // different starting points and only trust an answer both probes agree on.
+  const probe = (sentinel: string): string => {
+    ctx.fillStyle = sentinel;
+    ctx.fillStyle = color;
+    return ctx.fillStyle as string;
+  };
+  const normalized = probe("#000000");
+  if (normalized !== probe("#ffffff")) {
+    return null;
+  }
+  const hexMatch = /^#([0-9a-f]{6})$/.exec(normalized);
+  if (hexMatch) {
+    const value = Number.parseInt(hexMatch[1], 16);
+    return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff];
+  }
+  const rgbMatch = /^rgba?\(([^)]*)\)$/.exec(normalized);
+  if (rgbMatch) {
+    const components = rgbMatch[1]
+      .split(",")
+      .map((component) => Number.parseFloat(component));
+    if (
+      components.length >= 3 &&
+      components.slice(0, 3).every(Number.isFinite)
+    ) {
+      return [components[0], components[1], components[2]];
+    }
+  }
+  return null;
+}
+
+const dimColorCache = new Map<string, string>();
+function dimColor(color: string): string {
+  const explicit = explicitDimColors[color];
+  if (explicit) {
+    return explicit;
+  }
+  const cached = dimColorCache.get(color);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const rgb = parseColor(color);
+  const dimmed = rgb
+    ? `rgb(${rgb
+        .map((component) => Math.round(component * DIM_FACTOR))
+        .join(", ")})`
+    : color;
+  dimColorCache.set(color, dimmed);
+  return dimmed;
+}
 
 export class TwistyAnimatedSVG {
   public wrapperElement: HTMLElement;
@@ -139,11 +218,11 @@ export class TwistyAnimatedSVG {
                 typeof faceletStickeringMasks === "string"
                   ? faceletStickeringMasks
                   : faceletStickeringMasks?.mask;
-              const colorMap = colorMaps[stickeringMask];
-              if (typeof colorMap === "string") {
-                originalColor = colorMap;
-              } else if (colorMap) {
-                originalColor = colorMap[originalColor];
+              const flatColor = flatColors[stickeringMask];
+              if (flatColor) {
+                originalColor = flatColor;
+              } else if (stickeringMask === "dim" && originalColor) {
+                originalColor = dimColor(originalColor);
               }
             })();
           } else {
