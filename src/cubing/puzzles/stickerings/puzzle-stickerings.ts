@@ -27,7 +27,10 @@ export const experimentalStickerings: Record<
     },
   }, // default
   OLL: { groups: megaAnd3x3x3AndSquare1LL },
+  "OLL-EO": { groups: { megaminx: LL } },
+  "OLL-CO": { groups: { megaminx: LL } },
   PLL: { groups: megaAnd3x3x3AndSquare1LL },
+  "PLL-EO": { groups: { megaminx: LL } },
   LL: { groups: megaAnd3x3x3LL },
   EOLL: { groups: megaAnd3x3x3LL },
   COLL: { groups: megaAnd3x3x3LL },
