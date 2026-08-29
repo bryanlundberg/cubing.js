@@ -71,6 +71,7 @@ export enum PieceStickering {
   Invisible = "Invisible",
   Ignoriented = "Ignoriented",
   IgnoreNonPrimary = "IgnoreNonPrimary",
+  IgnorePrimary = "IgnorePrimary",
   PermuteNonPrimary = "PermuteNonPrimary",
   OrientationWithoutPermutation = "OrientationWithoutPermutation",
   ExperimentalOrientationWithoutPermutation2 = "ExperimentalOrientationWithoutPermutation2", // TODO
@@ -134,6 +135,13 @@ const pieceStickerings: Record<string, PieceStickeringMask> = {
   [PieceStickering.PermuteNonPrimary]: {
     // drrrr
     facelets: [dim, regular, regular, regular, regular],
+  },
+
+  // "PLL", with the primary face blanked out instead of dimmed, for diagrams
+  // where permutation is meant to be read off the side stickers alone.
+  [PieceStickering.IgnorePrimary]: {
+    // irrrr
+    facelets: [ignored, regular, regular, regular, regular],
   },
 
   // ignored
