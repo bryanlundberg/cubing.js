@@ -8,6 +8,7 @@ import type { ExperimentalStickering } from "..";
 import { RenderScheduler } from "../controllers/RenderScheduler";
 import type { TwistyAnimationControllerDelegate } from "../controllers/TwistyAnimationController";
 import { TwistyPlayerController } from "../controllers/TwistyPlayerController";
+import type { FaceColorBorderStyle } from "../model/props/puzzle/display/FaceColorBorderProp";
 import type { FaceletScale } from "../model/props/puzzle/display/FaceletScaleProp";
 import type { HintFaceletStyleWithAuto } from "../model/props/puzzle/display/HintFaceletProp";
 import type { HintFaceletsElevationRequest } from "../model/props/puzzle/display/HintFaceletsElevationProp";
@@ -62,6 +63,7 @@ export const twistyPlayerAttributeMap = {
   "experimental-puzzle-description": "experimentalPuzzleDescription",
   visualization: "visualization",
   "hint-facelets": "hintFacelets",
+  "experimental-face-color-border": "experimentalFaceColorBorder",
   "experimental-stickering": "experimentalStickering",
   "experimental-stickering-mask-orbits": "experimentalStickeringMaskOrbits",
   background: "background",
@@ -141,6 +143,7 @@ export interface TwistyPlayerConfig {
   experimentalPuzzleDescription?: PuzzleDescriptionString;
   visualization?: VisualizationFormatWithAuto;
   hintFacelets?: HintFaceletStyleWithAuto;
+  experimentalFaceColorBorder?: FaceColorBorderStyle;
   experimentalStickering?: ExperimentalStickering | null;
   experimentalStickeringMaskOrbits?: ExperimentalStickeringMask | string;
   background?: BackgroundThemeWithAuto;
