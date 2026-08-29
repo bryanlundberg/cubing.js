@@ -38,5 +38,9 @@ svg {
 .hint-facelets-none .hint-facelet {
   display: none;
 }
+
+.face-color-border-none .face-color-border-group {
+  display: none;
+}
 `,
 );
