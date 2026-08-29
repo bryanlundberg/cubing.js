@@ -4,6 +4,10 @@ import type { ExperimentalStickeringMask } from "../../../puzzles/cubing-private
 import type { PuzzleLoader } from "../../../puzzles/PuzzleLoader";
 import type { StickeringMask } from "../../../puzzles/stickerings/mask";
 import {
+  type FaceColorBorderStyle,
+  faceColorBorderStyles,
+} from "../../../twisty/model/props/puzzle/display/FaceColorBorderProp";
+import {
   type HintFaceletStyleWithAuto,
   hintFaceletStyles,
 } from "../../../twisty/model/props/puzzle/display/HintFaceletProp";
@@ -59,6 +63,13 @@ export class Twisty2DPuzzle
       this.model!.twistySceneModel.hintFacelet,
       (hintFacelet) => {
         this.setHintFacelet(hintFacelet);
+      },
+    );
+
+    this.#freshListenerManager.addListener(
+      this.model!.twistySceneModel.faceColorBorder,
+      (faceColorBorder) => {
+        this.setFaceColorBorder(faceColorBorder);
       },
     );
 
@@ -158,6 +169,7 @@ export class Twisty2DPuzzle
       stickeringMask,
     ); // TODO
     this.addElement(this.svgWrapper.wrapperElement);
+    this.#applyFaceColorBorderViewBox();
     if (this.#cachedPosition) {
       this.onPositionChange(this.#cachedPosition);
     }
@@ -172,6 +184,34 @@ export class Twisty2DPuzzle
     this.hintFaceletsClassListManager.setValue(
       hintFacelet === "auto" ? "floating" : hintFacelet,
     );
+  }
+
+  private faceColorBorderClassListManager = new ClassListManager(
+    this,
+    "face-color-border-",
+    Object.keys(faceColorBorderStyles),
+  );
+  #faceColorBorder: FaceColorBorderStyle = "auto";
+  setFaceColorBorder(faceColorBorder: FaceColorBorderStyle) {
+    this.#faceColorBorder = faceColorBorder;
+    this.faceColorBorderClassListManager.setValue(faceColorBorder);
+    this.#applyFaceColorBorderViewBox();
+  }
+
+  // The border sits outside the puzzle outline, so an SVG that has one reserves
+  // room for it in the `viewBox` it ships with. Hiding the border would then
+  // leave the diagram floating in a band of empty space, so swap in the tight
+  // `viewBox` the SVG declares alongside it.
+  #applyFaceColorBorderViewBox(): void {
+    const svgElement = this.svgWrapper?.svgElement;
+    const viewBox = svgElement?.getAttribute(
+      this.#faceColorBorder === "none"
+        ? "data-view-box-without-face-color-border"
+        : "data-view-box-with-face-color-border",
+    );
+    if (viewBox) {
+      svgElement!.setAttribute("viewBox", viewBox);
+    }
   }
 
   private render(): void {
