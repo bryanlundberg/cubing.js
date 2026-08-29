@@ -1,6 +1,6 @@
 {
   "name": "@rednaxela101/cubing",
-  "version": "0.63.5",
+  "version": "0.63.6",
   "description": "A slim fork of cubing.js, shipping a reduced puzzle set.",
   "author": "The js.cubing.net team",
   "license": "MPL-2.0 OR GPL-3.0-or-later",
