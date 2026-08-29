@@ -11,50 +11,9 @@ The API surface, the module layout and the build system are unchanged from upstr
 
 ## Supported puzzles
 
-| Puzzle | ID | 3D | 2D net | 2D last layer | Scrambles |
-| --- | --- | :-: | :-: | :-: | --- |
-| 3×3×3 Cube | `3x3x3` | ✅ | ✅ | ✅ | random-state |
-| 2×2×2 Cube | `2x2x2` | ✅ | ✅ | ✅ | random-state |
-| 4×4×4 Cube | `4x4x4` | ✅ | ❌ | ✅ | random-state |
-| 5×5×5 Cube | `5x5x5` | ✅ | ❌ | ✅ | random-moves |
-| 6×6×6 Cube | `6x6x6` | ✅ | ❌ | ❌ | random-moves |
-| 7×7×7 Cube | `7x7x7` | ✅ | ❌ | ❌ | random-moves |
-| Square-1 | `square1` | ✅ | ✅ | ✅ | random-state |
-| Pyraminx | `pyraminx` | ✅ | ✅ | ❌ | random-state |
-| Megaminx | `megaminx` | ✅ | ❌ | ✅ | random-moves |
-| Clock | `clock` | ❌ | ✅ | ❌ | random-state |
-| Skewb | `skewb` | ✅ | ❌ | ❌ | random-state |
-| Face-Turning Octahedron | `fto` | ✅ | ✅ | ❌ | random-state |
+`3x3x3`, `2x2x2`, `4x4x4`, `5x5x5`, `6x6x6`, `7x7x7`, `square1`, `pyraminx`, `megaminx`, `clock`, `skewb`, `fto`.
 
 Every WCA event is supported (`222`, `333`, `444`, `555`, `666`, `777`, `333bf`, `333fm`, `333oh`, `333mbf`, `444bf`, `555bf`, `clock`, `minx`, `pyram`, `skewb`, `sq1`), plus `fto`.
-
-## Breaking changes vs. upstream
-
-### Removed puzzles
-
-These puzzles are gone from `puzzles`, from `PuzzleID`, and from the `<twisty-player puzzle="…">` attribute. Requesting one throws instead of rendering.
-
-| Removed | Upstream ID |
-| --- | --- |
-| Kilominx | `kilominx` |
-| Master Tetraminx | `master_tetraminx` |
-| Gigaminx | `gigaminx` |
-| Redi Cube | `redi_cube` |
-| Baby FTO | `baby_fto` |
-| Melinda's 2×2×2×2 | `melindas2x2x2x2` |
-| Tri-Quad | `tri_quad` |
-| Loopover | `loopover` |
-| 40×40×40 Cube | `40x40x40` |
-
-### Removed events
-
-`randomScrambleForEvent(…)` no longer accepts the Twizzle-only events that belonged to the removed puzzles: `kilominx`, `master_tetraminx`, `redi_cube`, `baby_fto`, `loopover`. Every WCA event plus `fto` still works.
-
-### Other removals
-
-- The vendored solvers for the removed puzzles (`kilosolver.js`, `master_tetraminx-solver.js`, `redi_cube.js`) are deleted.
-- The `stress-tests/40x40x40` demo page is deleted, along with its 379 kB solution file.
-- Dynamic chunk entry points were renamed (see [Re-chunking](#re-chunking)). This only matters if you were importing internal `puzzles-dynamic-*` paths directly, which is not part of the public API.
 
 ## What this fork adds
 
@@ -62,9 +21,13 @@ These puzzles are gone from `puzzles`, from `PuzzleID`, and from the `<twisty-pl
 - **Square-1 2D last-layer diagrams.** `visualization="experimental-2D-LL"` on `square1`, with `OLL` and `PLL` stickerings.
 - **Better 2D Square-1 rendering.** Piece separator support in the SVG renderer: outlines between two halves of a piece hide and reappear as pieces join and split.
 - **5×5×5 2D last-layer diagrams.** `visualization="experimental-2D-LL"` on `5x5x5`, with a cached SVG built from reusable `<use>` elements.
+- **A full stickering set for Megaminx last-layer diagrams.** Alongside `OLL` and `PLL`, three stickerings that do not exist upstream: `OLL-EO` (last-layer center and edges only), `OLL-CO` (last-layer center and corners only), and `PLL-EO` (the side stickers of the last-layer edges only).
+- **Megaminx `PLL` read off the side stickers.** The last-layer face is blanked out instead of dimmed, so permutation comes from the surrounding stickers alone. Upstream dims it to a near-white grey that still reads as the face color.
+- **A face-color border for 2D last-layer diagrams.** An optional ring outside the puzzle outline, colored with the face each side belongs to, as an orientation reference. Controlled by `experimental-face-color-border` / `experimentalFaceColorBorder` (`auto` by default, `none` to hide); the framing tightens back up when it is hidden. Currently drawn by the Megaminx last-layer SVG, and any 2D SVG can opt in.
+- **Palette-agnostic dimming in the 2D renderer.** Upstream hard-codes a dim color per 3×3×3 face; any color outside that table dimmed to `undefined`, which is not a valid `stop-color` and painted the facelet solid black. Colors it does not know are now darkened programmatically, which is what makes the Megaminx diagrams usable.
 - **`L2E` stickering.** Last two edges, for `4x4x4`, `5x5x5` and `6x6x6`, under the Reduction group.
 
-## Rendering performance
+## Rendering performance (caching)
 
 Several per-frame code paths in `cubing/twisty` were doing work that could be skipped. Measured on Chromium as the cost of one `onPositionChange(…)` call with a move in progress (minimum of 7 rounds of 3000 calls), 2026-08-27.
 
@@ -92,17 +55,11 @@ A snapshot, not a live claim: each entry point bundled with `esbuild` (minified,
 
 ### Re-chunking
 
-Upstream bundles several puzzles into a single lazily-loaded chunk. Displaying a 2×2×2 in 2D therefore also downloads the Clock and Square-1 artwork. This fork splits those chunks one-per-puzzle, following the per-puzzle convention the cube chunks already used.
+Upstream bundles several puzzles into a single lazily-loaded chunk. Displaying a 2×2×2 in 2D therefore also downloads the Clock and Square-1 artwork. This fork splits those chunks one-per-puzzle.
 
-| Upstream chunk | This fork |
-| --- | --- |
-| `puzzles-dynamic-side-events` (123 kB)<br>2×2×2 + Clock + Pyraminx + Square-1 | `puzzles-dynamic-2x2x2` 7 kB<br>`puzzles-dynamic-clock` 48 kB<br>`puzzles-dynamic-pyraminx` 5 kB<br>`puzzles-dynamic-square1` 62 kB |
-| `puzzles-dynamic-unofficial` (44 kB)<br>FTO + Baby FTO + Kilominx + Loopover + Redi Cube | `puzzles-dynamic-fto` 11 kB |
-| `search-dynamic-sgs-side-events` (33 kB)<br>2×2×2 + Megaminx + Pyraminx + Skewb | `search-dynamic-sgs-2x2x2` 1 kB<br>`search-dynamic-sgs-megaminx` 28 kB<br>`search-dynamic-sgs-pyraminx` 1 kB<br>`search-dynamic-sgs-skewb` 2 kB |
+### Everything is lazily loaded
 
-### What a browser actually downloads
-
-Everything is lazily loaded, so the numbers that matter are per-scenario, not per-package. Gzipped, `three.js` excluded:
+The numbers that matter are per-scenario, not per-package. Gzipped, `three.js` excluded:
 
 | Scenario | Download |
 | --- | --- |
@@ -111,10 +68,3 @@ Everything is lazily loaded, so the numbers that matter are per-scenario, not pe
 | Any other event (pulls the WASM scramble engine) | 376 kB |
 | `cubing/twisty` initial load | 86 kB |
 | `cubing/twisty` with 3D and every puzzle | 162 kB + `three.js` |
-
-### Known remaining weight
-
-Two items dominate what is left, and neither is about the puzzle list:
-
-- **The WASM scramble engine, 209 kB gzip.** It is base64-inlined into a `.js` file, which inflates the binary by 33% and compresses worse than the binary would. Shipping it as a real `.wasm` asset would bring it to 152 kB gzip. Upstream disabled that path on purpose until bundler support settled, so re-enabling it is a packaging decision rather than a code one.
-- **`three.js`, 134 kB gzip.** Only downloaded when the player renders in 3D. Setting `visualization="2D"` avoids it entirely. The `three` imports inside `cubing/twisty` are all `import type`, so there is nothing left to tree-shake there.
