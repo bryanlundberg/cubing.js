@@ -1,4 +1,5 @@
 import { URLProp } from "./props/general/URLProp";
+import { FaceColorBorderProp } from "./props/puzzle/display/FaceColorBorderProp";
 import { FaceletScaleProp } from "./props/puzzle/display/FaceletScaleProp";
 import { FoundationDisplayProp } from "./props/puzzle/display/FoundationDisplayProp";
 import { HintFaceletProp } from "./props/puzzle/display/HintFaceletProp";
@@ -28,6 +29,7 @@ export class TwistySceneModel {
   foundationDisplay = new FoundationDisplayProp();
   foundationStickerSpriteURL = new URLProp();
   fullscreenElement = new DOMElementReferenceProp();
+  faceColorBorder = new FaceColorBorderProp();
   hintFacelet = new HintFaceletProp();
   hintStickerSpriteURL = new URLProp();
   initialHintFaceletsAnimation = new InitialHintFaceletsAnimationProp();
