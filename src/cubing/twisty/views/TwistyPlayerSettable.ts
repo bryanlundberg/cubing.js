@@ -3,6 +3,7 @@ import type { PuzzleDescriptionString } from "../../puzzle-geometry/pgPuzzles";
 import type { StickeringMask } from "../../puzzles/stickerings/mask";
 import type { ExperimentalStickering, PuzzleID } from "../../twisty";
 import type { MillisecondTimestamp } from "../controllers/AnimationTypes";
+import type { FaceColorBorderStyle } from "../model/props/puzzle/display/FaceColorBorderProp";
 import type { FaceletScale } from "../model/props/puzzle/display/FaceletScaleProp";
 import type { HintFaceletStyleWithAuto } from "../model/props/puzzle/display/HintFaceletProp";
 import type { InitialHintFaceletsAnimation } from "../model/props/puzzle/display/InitialHintFaceletsAnimationProp";
@@ -76,6 +77,15 @@ export abstract class TwistyPlayerSettable extends ManagedCustomElement {
   }
   get hintFacelets(): never {
     throw err("hintFacelets");
+  }
+
+  set experimentalFaceColorBorder(faceColorBorderStyle: FaceColorBorderStyle) {
+    this.experimentalModel.twistySceneModel.faceColorBorder.set(
+      faceColorBorderStyle,
+    );
+  }
+  get experimentalFaceColorBorder(): never {
+    throw err("experimentalFaceColorBorder");
   }
 
   set experimentalStickering(stickering: ExperimentalStickering) {
