@@ -9,6 +9,36 @@ The API surface, the module layout and the build system are unchanged from upstr
 - Upstream project: <https://github.com/cubing/cubing.js>
 - Upstream documentation: <https://js.cubing.net/cubing/>
 
+## Install
+
+```bash
+npm install @rednaxela101/cubing
+```
+
+<details>
+<summary>Other package managers</summary>
+
+```bash
+pnpm add @rednaxela101/cubing
+```
+
+```bash
+yarn add @rednaxela101/cubing
+```
+
+```bash
+bun add @rednaxela101/cubing
+```
+
+</details>
+
+Imports keep the upstream module layout, so only the package name changes:
+
+```js
+import { TwistyPlayer } from "@rednaxela101/cubing/twisty";
+import { randomScrambleForEvent } from "@rednaxela101/cubing/scramble";
+```
+
 ## Supported puzzles
 
 `3x3x3`, `2x2x2`, `4x4x4`, `5x5x5`, `6x6x6`, `7x7x7`, `square1`, `pyraminx`, `megaminx`, `clock`, `skewb`, `fto`.
