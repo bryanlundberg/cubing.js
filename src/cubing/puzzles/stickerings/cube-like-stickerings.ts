@@ -95,6 +95,15 @@ export async function cubeLikePuzzleStickering(
       );
       break;
     }
+    case "PLL-CP": {
+      dimF2L();
+      puzzleStickering.set(LL(), PieceStickering.Ignored);
+      puzzleStickering.set(
+        m.and([LL(), CORNERS()]),
+        PieceStickering.IgnorePrimary,
+      );
+      break;
+    }
     case "CLS": {
       dimF2L();
       puzzleStickering.set(cornerDFR(), PieceStickering.Regular);
