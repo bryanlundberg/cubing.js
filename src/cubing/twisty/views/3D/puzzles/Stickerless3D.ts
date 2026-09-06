@@ -6,6 +6,7 @@ import type { Material } from "three/src/materials/Material.js";
 import { MeshBasicMaterial } from "three/src/materials/MeshBasicMaterial.js";
 import { Matrix4 } from "three/src/math/Matrix4.js";
 import { Vector3 } from "three/src/math/Vector3.js";
+import { BatchedMesh } from "three/src/objects/BatchedMesh.js";
 import { Mesh } from "three/src/objects/Mesh.js";
 import type { Texture } from "three/src/textures/Texture.js";
 import { Move } from "../../../../alg";
@@ -25,7 +26,7 @@ import type { VertexRange } from "./SolidPieceGeometry";
 import {
   faceletAppearance,
   faceletAppearanceKey,
-  HINT_MATERIAL_INDEX,
+  type PieceMesh,
   type PiecePlan,
   type PuzzlePlan,
   writeColor,
@@ -45,16 +46,48 @@ import type { Twisty3DPuzzle } from "./Twisty3DPuzzle";
 
 const invisibleMaterial = new MeshBasicMaterial({ visible: false });
 
+function newBatch(meshes: PieceMesh[], material: Material): BatchedMesh {
+  let vertices = 0;
+  let indices = 0;
+  for (const { geometry } of meshes) {
+    vertices += geometry.getAttribute("position").count;
+    indices += geometry.getIndex()?.count ?? 0;
+  }
+  return new BatchedMesh(meshes.length, vertices, indices, material);
+}
+
+/** Copies one piece's geometry in, and returns where the batch put it. */
+function addToBatch(
+  batch: BatchedMesh,
+  mesh: PieceMesh,
+  home: Matrix4,
+): { instance: number; vertexStart: number } {
+  const geometryId = batch.addGeometry(mesh.geometry);
+  const instance = batch.addInstance(geometryId);
+  batch.setMatrixAt(instance, home);
+  mesh.geometry.dispose();
+  // `getGeometryRangeAt` reports more than the types admit to.
+  const range = batch.getGeometryRangeAt(geometryId) as unknown as {
+    vertexStart: number;
+  };
+  return { instance, vertexStart: range.vertexStart };
+}
+
 interface Piece {
-  mesh: Mesh;
-  colors: BufferAttribute;
+  /** Where this piece sits in each batch. -1 when it has no hint facelet. */
+  bodyInstance: number;
+  hintInstance: number;
   home: Matrix4;
+  /** Where it is right now, which is `home` unless a move is sweeping it. */
+  matrix: Matrix4;
+  turning: boolean;
 }
 
 /** Where one facelet of the puzzle lives, and what it is currently showing. */
 interface FaceletSlot {
   piece: Piece;
   faceStyle: number;
+  /** Vertices in the batch's own color attribute, not the piece's. */
   body: VertexRange[];
   hint: VertexRange[];
   /** Which face and masks the colors currently written here came from. */
@@ -76,11 +109,19 @@ export interface Stickerless3DOptions {
 
 export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
   #pieces: Piece[] = [];
+  /**
+   * One draw call for every piece of the puzzle, and one for every hint
+   * facelet. A batch keeps a matrix per instance, so a move still moves the
+   * pieces it sweeps and nothing else.
+   */
+  #bodyBatch: BatchedMesh;
+  #hintBatch: BatchedMesh | null = null;
+  #bodyColors: BufferAttribute;
+  #hintColors: BufferAttribute | null = null;
   /** Indexed `[orbit][ori][ord]`, like the orbits of the `KPuzzle`. */
   #facelets: Record<string, FaceletSlot[][]> = {};
   #axesInfo: Record<string, AxisInfo> = {};
   #controlTargets: Object3D[] = [];
-  #materials: Material[];
   #bodyMaterial: Material;
   #hintMaterial: Material;
   #appearances = new Map<number, Uint8Array>();
@@ -88,7 +129,8 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
   #turningPieces: Piece[] = [];
   /** Which pieces each quantum move sweeps, by the move's notation. */
   #turnedPieces = new Map<string, Piece[]>();
-  #dirtyColors = new Set<BufferAttribute>();
+  /** The span of each color attribute that changed, so only it is uploaded. */
+  #dirtyColors = new Map<BufferAttribute, { first: number; last: number }>();
   #lastPosition: PuzzlePosition | null = null;
   #pendingStickeringUpdate = false;
 
@@ -108,10 +150,6 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
       side: BackSide,
     });
     this.#bodyMaterial = newVertexColorBodyMaterial();
-    this.#materials = [this.#bodyMaterial, this.#hintMaterial];
-    this.experimentalUpdateOptions({
-      hintFacelets: options.hintFacelets ?? "floating",
-    });
 
     for (const axis of stickerDat.axis) {
       this.#axesInfo[axis.quantumMove.family] = {
@@ -120,9 +158,37 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
       };
     }
 
+    this.#bodyBatch = newBatch(
+      plan.pieces.map((piecePlan) => piecePlan.body),
+      this.#bodyMaterial,
+    );
+    // Opaque and always on screen, so neither sorting nor culling per piece
+    // buys anything, and skipping both lets the batch sit still between moves.
+    this.#bodyBatch.sortObjects = false;
+    this.#bodyBatch.perObjectFrustumCulled = false;
+    this.add(this.#bodyBatch);
+
+    const hints = plan.pieces
+      .map((piecePlan) => piecePlan.hint)
+      .filter((hint) => hint !== null);
+    if (hints.length > 0) {
+      this.#hintBatch = newBatch(hints, this.#hintMaterial);
+      this.#hintBatch.perObjectFrustumCulled = false;
+      this.add(this.#hintBatch);
+    }
     for (const piecePlan of plan.pieces) {
       this.#addPiece(piecePlan);
     }
+    // A batch has no buffers of its own until the first geometry goes in.
+    this.#bodyColors = this.#bodyBatch.geometry.getAttribute(
+      "color",
+    ) as BufferAttribute;
+    this.#hintColors =
+      (this.#hintBatch?.geometry.getAttribute("color") as BufferAttribute) ??
+      null;
+    this.experimentalUpdateOptions({
+      hintFacelets: options.hintFacelets ?? "floating",
+    });
 
     for (const face of stickerDat.faces) {
       this.#addControlTarget(face);
@@ -135,24 +201,47 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
   }
 
   #addPiece(plan: PiecePlan): void {
-    const mesh = new Mesh(plan.geometry, this.#materials);
-    mesh.matrixAutoUpdate = false;
-    mesh.matrix.copy(plan.home);
-    this.add(mesh);
-    const piece: Piece = { mesh, colors: plan.colors, home: plan.home };
+    const bodyInstance = addToBatch(this.#bodyBatch, plan.body, plan.home);
+    const hintInstance =
+      plan.hint && this.#hintBatch
+        ? addToBatch(this.#hintBatch, plan.hint, plan.home)
+        : -1;
+    const piece: Piece = {
+      bodyInstance: bodyInstance.instance,
+      hintInstance: hintInstance === -1 ? -1 : hintInstance.instance,
+      home: plan.home,
+      matrix: plan.home.clone(),
+      turning: false,
+    };
     this.#pieces.push(piece);
 
+    // A facelet's vertices sit wherever the batch put the piece's geometry.
+    const shift = (ranges: VertexRange[], offset: number) =>
+      ranges.map((range) => ({
+        start: range.start + offset,
+        count: range.count,
+      }));
     const orbitFacelets = (this.#facelets[plan.orbit] ??= []);
     for (const facelet of plan.facelets) {
       (orbitFacelets[facelet.ori] ??= [])[plan.ord] = {
         piece,
         faceStyle: facelet.faceStyle,
-        body: facelet.body,
-        hint: facelet.hint,
+        body: shift(facelet.body, bodyInstance.vertexStart),
+        hint:
+          hintInstance === -1
+            ? []
+            : shift(facelet.hint, hintInstance.vertexStart),
         appearanceKey: -1,
         mask: "regular",
         hintMask: "regular",
       };
+    }
+  }
+
+  #setMatrix(piece: Piece): void {
+    this.#bodyBatch.setMatrixAt(piece.bodyInstance, piece.matrix);
+    if (piece.hintInstance !== -1) {
+      this.#hintBatch!.setMatrixAt(piece.hintInstance, piece.matrix);
     }
   }
 
@@ -183,9 +272,10 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
   }
 
   dispose(): void {
-    for (const piece of this.#pieces) {
-      piece.mesh.geometry.dispose();
-    }
+    this.#bodyBatch.dispose();
+    this.#bodyBatch.geometry.dispose();
+    this.#hintBatch?.dispose();
+    this.#hintBatch?.geometry.dispose();
     this.#bodyMaterial.dispose();
     this.#hintMaterial.dispose();
   }
@@ -303,11 +393,8 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
     hintStickerOpacity?: number;
     faceletScale?: "auto" | number;
   }): void {
-    if (options.hintFacelets !== undefined) {
-      this.#materials[HINT_MATERIAL_INDEX] =
-        options.hintFacelets === "none"
-          ? invisibleMaterial
-          : this.#hintMaterial;
+    if (options.hintFacelets !== undefined && this.#hintBatch) {
+      this.#hintBatch.visible = options.hintFacelets !== "none";
       this.scheduleRenderCallback();
     }
   }
@@ -340,10 +427,11 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
       this.#pendingStickeringUpdate = false;
     }
 
-    for (const piece of this.#turningPieces) {
-      piece.mesh.matrix.copy(piece.home);
+    const wereTurning = this.#turningPieces;
+    for (const piece of wereTurning) {
+      piece.turning = false;
     }
-    this.#turningPieces.length = 0;
+    this.#turningPieces = [];
 
     const turnMatrix = new Matrix4();
     for (const moveProgress of position.movesInProgress) {
@@ -365,9 +453,23 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
           axisInfo.order,
       );
       for (const piece of this.#piecesTurnedBy(move)) {
-        piece.mesh.matrix.premultiply(turnMatrix);
-        this.#turningPieces.push(piece);
+        if (!piece.turning) {
+          piece.turning = true;
+          piece.matrix.copy(piece.home);
+          this.#turningPieces.push(piece);
+        }
+        piece.matrix.premultiply(turnMatrix);
       }
+    }
+
+    for (const piece of wereTurning) {
+      if (!piece.turning) {
+        piece.matrix.copy(piece.home);
+        this.#setMatrix(piece);
+      }
+    }
+    for (const piece of this.#turningPieces) {
+      this.#setMatrix(piece);
     }
 
     this.scheduleRenderCallback();
@@ -469,15 +571,39 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
             source.mask,
             source.hintMask,
           );
-          writeColor(slot.piece.colors, slot.body, appearance);
-          writeColor(slot.piece.colors, slot.hint, appearance, 4);
-          this.#dirtyColors.add(slot.piece.colors);
+          this.#paint(this.#bodyColors, slot.body, appearance, 0);
+          if (this.#hintColors) {
+            this.#paint(this.#hintColors, slot.hint, appearance, 4);
+          }
         }
       }
     }
-    for (const colors of this.#dirtyColors) {
+    for (const [colors, span] of this.#dirtyColors) {
+      // In elements, not vertices, which is what `WebGLAttributes` slices by.
+      colors.addUpdateRange(4 * span.first, 4 * (span.last - span.first + 1));
       colors.needsUpdate = true;
     }
     this.#dirtyColors.clear();
+  }
+
+  #paint(
+    colors: BufferAttribute,
+    ranges: VertexRange[],
+    appearance: Uint8Array,
+    offset: number,
+  ): void {
+    if (ranges.length === 0) {
+      return;
+    }
+    writeColor(colors, ranges, appearance, offset);
+    let span = this.#dirtyColors.get(colors);
+    if (!span) {
+      span = { first: Number.POSITIVE_INFINITY, last: 0 };
+      this.#dirtyColors.set(colors, span);
+    }
+    for (const range of ranges) {
+      span.first = Math.min(span.first, range.start);
+      span.last = Math.max(span.last, range.start + range.count - 1);
+    }
   }
 }
