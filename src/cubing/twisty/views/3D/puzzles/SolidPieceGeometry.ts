@@ -27,7 +27,6 @@ export interface VertexRange {
 
 export interface SolidPiece {
   positions: Float32Array;
-  normals: Float32Array;
   vertexCount: number;
   /**
    * Vertices to paint with each plane's color, indexed like the planes passed
@@ -322,11 +321,9 @@ export function solidPieceGeometry(
       : plain) ?? plain;
 
   const positions: number[] = [];
-  const normals: number[] = [];
   const ranges: VertexRange[][] = planes.map(() => []);
   const internalRanges: VertexRange[] = [];
   for (const facet of facets) {
-    const plane = withChamfers[facet.plane];
     const start = positions.length / 3;
     for (let i = 1; i < facet.vertices.length - 1; i++) {
       for (const vertex of [
@@ -335,23 +332,21 @@ export function solidPieceGeometry(
         facet.vertices[i + 1],
       ]) {
         positions.push(vertex.x, vertex.y, vertex.z);
-        normals.push(plane.normal.x, plane.normal.y, plane.normal.z);
       }
     }
     const range = { start, count: positions.length / 3 - start };
     if (range.count === 0) {
       continue;
     }
-    if (plane.source === -1) {
+    if (withChamfers[facet.plane].source === -1) {
       internalRanges.push(range);
     } else {
-      ranges[plane.source].push(range);
+      ranges[withChamfers[facet.plane].source].push(range);
     }
   }
 
   return {
     positions: new Float32Array(positions),
-    normals: new Float32Array(normals),
     vertexCount: positions.length / 3,
     ranges,
     internalRanges,
