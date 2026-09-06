@@ -33,15 +33,26 @@ export interface FaceletPlan {
   hint: VertexRange[];
 }
 
+/**
+ * One drawable part of a piece: `position`, `color`, and an index where the
+ * geometry has one. Body and hint facelets are kept apart so that each can go
+ * into a batch of its own, since they are drawn with different materials.
+ */
+export interface PieceMesh {
+  geometry: BufferGeometry;
+  /** The geometry's color attribute, seeding the batch's own. */
+  colors: BufferAttribute;
+}
+
 export interface PiecePlan {
   orbit: string;
   ord: number;
   /** Where the piece sits when nothing is turning. */
   home: Matrix4;
-  /** Ready to draw: `position`, `normal` and `color`, with groups added. */
-  geometry: BufferGeometry;
-  /** The geometry's color attribute, with the plastic inside already painted. */
-  colors: BufferAttribute;
+  /** With the plastic inside already painted. */
+  body: PieceMesh;
+  /** `null` for a piece with no facelet to float a hint off. */
+  hint: PieceMesh | null;
   facelets: FaceletPlan[];
 }
 
@@ -56,10 +67,6 @@ export interface PuzzlePlan {
 export const HINT_FACELET_ELEVATION = 0.5;
 /** Width of a hint facelet, as a fraction of a facelet. Matches `Cube3D`. */
 export const HINT_FACELET_SCALE = 0.85;
-
-/** Material slots every piece's geometry uses, in order. */
-export const BODY_MATERIAL_INDEX = 0;
-export const HINT_MATERIAL_INDEX = 1;
 
 export const faceletMeshStickeringMasks: FaceletMeshStickeringMask[] = [
   "regular",
