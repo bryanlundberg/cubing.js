@@ -27,19 +27,17 @@ import {
 } from "./StickerlessPlan";
 
 /**
- * The pieces of a puzzle whose cuts all pass through its center — a skewb, say
- * — read off the stickers `PuzzleGeometry` produces.
+ * The pieces of a puzzle, read off the stickers `PuzzleGeometry` produces.
  *
  * A piece is bounded by the faces of the puzzle its stickers sit on, and by the
- * cuts separating it from its neighbors. Both are recoverable: the faces are
- * the sticker planes, and each cut shows up on the surface as an edge between
- * two stickers of different pieces. Taking the plane through such an edge and
- * the puzzle's center gives the cut back exactly for a deep-cut puzzle, and for
- * any other one gives a piece that is right everywhere it can be seen and only
- * runs too deep inside, where it is hidden.
+ * cuts separating it from its neighbors. Both are recoverable from the surface:
+ * the faces are the sticker planes, and every cut shows up as an edge between
+ * two stickers of different pieces, lying square to an axis the puzzle turns
+ * about. Recovering the cuts is most of the work, since an edge fits several
+ * axes and only one of them is the cut it lies on.
  *
- * `CubePieces` handles the N×N×N cubes instead, whose cuts do *not* pass
- * through the center and whose pieces are worth rounding properly.
+ * `CubePieces` gets first refusal on the N×N×N cubes, whose pieces are all the
+ * same shape and worth rounding properly.
  */
 
 const PG_SCALE = 0.5; // Matches `PG3D`, so that the camera framing carries over.
@@ -161,6 +159,8 @@ export function solidPuzzlePlan(stickerDat: StickerDat): PuzzlePlan | null {
   }
 
   let radius = 0;
+  let faceletArea = 0;
+  let faceletCount = 0;
   for (const sticker of stickers) {
     if (sticker.coords.length < 9 || sticker.coords.length % 3 !== 0) {
       return null;
@@ -228,6 +228,14 @@ export function solidPuzzlePlan(stickerDat: StickerDat): PuzzlePlan | null {
     if (faceColors[sticker.face] !== sticker.color) {
       return null;
     }
+    faceletCount++;
+    for (let i = 1; i < polygon.length - 1; i++) {
+      faceletArea +=
+        new Vector3()
+          .subVectors(polygon[i], polygon[0])
+          .cross(new Vector3().subVectors(polygon[i + 1], polygon[0]))
+          .length() / 2;
+    }
     piece.stickers.push({ sticker, polygon });
 
     for (let i = 0; i < polygon.length; i++) {
@@ -250,17 +258,35 @@ export function solidPuzzlePlan(stickerDat: StickerDat): PuzzlePlan | null {
   if (!styles) {
     return null;
   }
-
-  const axes = stickerDat.axis.map((axis) =>
-    new Vector3(...axis.coordinates).normalize(),
+  // A groove is a gap in the plastic, so it goes by the size of the puzzle. On
+  // a puzzle whose facelets are small that would swamp them, so it goes by the
+  // size of a facelet too, whichever comes out narrower. The two agree on a
+  // 3×3×3, whose half-width is one and a half facelets.
+  const featureScale = Math.min(
+    faceDistance,
+    1.5 * Math.sqrt(faceletArea / faceletCount),
   );
+
+  const cuts = cutPlanes(
+    order,
+    edges,
+    stickerDat.axis.map((axis) => new Vector3(...axis.coordinates).normalize()),
+    quantum,
+  );
+  if (!cuts) {
+    return null;
+  }
   const plans: PiecePlan[] = [];
   for (const piece of order) {
-    const plan = newSolidPiece(piece, edges, axes, {
-      quantum,
-      radius,
-      faceDistance,
-    });
+    const plan = newSolidPiece(
+      piece,
+      { planes: cuts, edges },
+      {
+        quantum,
+        radius,
+        featureScale,
+      },
+    );
     if (!plan) {
       return null;
     }
@@ -269,26 +295,129 @@ export function solidPuzzlePlan(stickerDat: StickerDat): PuzzlePlan | null {
   return { faceStyles: styles, pieces: plans, scale: PG_SCALE };
 }
 
-function newSolidPiece(
-  piece: PieceStickers,
+/**
+ * Every cut of the puzzle, recovered from the surface.
+ *
+ * A cut shows up as an edge between two stickers of different pieces, and it
+ * faces along an axis the puzzle turns about, so each such edge nominates the
+ * axes it lies square to. Several axes fit any one edge, and the way to tell
+ * the real cut from the rest is that a cut never crosses a piece: it is a plane
+ * the whole puzzle is cut along, not just a plane that happens to slip between
+ * these two pieces. Anything some piece straddles is dropped.
+ *
+ * Returns `null` when an edge is left with no cut to lie on, which means this
+ * isn't a puzzle whose pieces can be recovered this way.
+ */
+interface Cut {
+  normal: Vector3;
+  offset: number;
+  /** How many edges of the surface lie in it. */
+  uses: number;
+}
+
+function cutPlanes(
+  pieces: PieceStickers[],
   edges: Map<string, Set<string>>,
   axes: Vector3[],
-  sizes: { quantum: number; radius: number; faceDistance: number },
+  quantum: number,
+): Cut[] | null {
+  const candidates = new Map<string, Cut>();
+  const boundaryEdges: [Vector3, Vector3][] = [];
+  for (const piece of pieces) {
+    const pieceKey = `${piece.orbit}/${piece.ord}`;
+    for (const { polygon } of piece.stickers) {
+      for (let i = 0; i < polygon.length; i++) {
+        const a = polygon[i];
+        const b = polygon[(i + 1) % polygon.length];
+        const sharing = edges.get(
+          [keyOf(a, quantum), keyOf(b, quantum)].sort().join("|"),
+        );
+        // An edge the piece keeps to itself is a fold in one piece of plastic,
+        // not a cut.
+        if (!sharing || ![...sharing].some((key) => key !== pieceKey)) {
+          continue;
+        }
+        boundaryEdges.push([a, b]);
+        for (const axis of axes) {
+          if (Math.abs(a.dot(axis) - b.dot(axis)) > quantum) {
+            continue;
+          }
+          // One entry per plane, however many edges nominate it.
+          const offset = a.dot(axis);
+          const key = `${keyOf(axis, 1e-4)}|${Math.round(offset / quantum)}`;
+          const candidate = candidates.get(key);
+          if (candidate) {
+            candidate.uses++;
+          } else {
+            candidates.set(key, { normal: axis, offset, uses: 1 });
+          }
+        }
+      }
+    }
+  }
+
+  // A cut of the puzzle runs the whole way across it, so it holds many of the
+  // edges it could hold. A plane that merely grazes a corner holds a handful,
+  // and picking by this is what tells the two apart where geometry cannot.
+  const cuts = [...candidates.values()].sort((a, b) => b.uses - a.uses);
+  const kept = cuts.filter(({ normal, offset }) => {
+    for (const piece of pieces) {
+      let above = false;
+      let below = false;
+      for (const { polygon } of piece.stickers) {
+        let onIt = true;
+        for (const vertex of polygon) {
+          above ||= vertex.dot(normal) > offset + quantum;
+          below ||= vertex.dot(normal) < offset - quantum;
+          onIt &&= Math.abs(vertex.dot(normal) - offset) <= quantum;
+        }
+        // A plane holding a whole sticker is the puzzle's own surface, not a
+        // cut. Letting it through would cut every piece back from its face.
+        if (onIt) {
+          return false;
+        }
+      }
+      if (above && below) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  for (const [a, b] of boundaryEdges) {
+    const covered = kept.some(
+      ({ normal, offset }) =>
+        Math.abs(a.dot(normal) - offset) < quantum &&
+        Math.abs(b.dot(normal) - offset) < quantum,
+    );
+    if (!covered) {
+      return null;
+    }
+  }
+  return kept;
+}
+
+function newSolidPiece(
+  piece: PieceStickers,
+  cuts: { planes: Cut[]; edges: Map<string, Set<string>> },
+  sizes: { quantum: number; radius: number; featureScale: number },
 ): PiecePlan | null {
   if (piece.stickers.length === 0) {
     return null;
   }
-  const pieceKey = `${piece.orbit}/${piece.ord}`;
   const planes: PiecePlane[] = [];
   // Which plane each sticker's face became, so its facelet can be painted.
   const planeOfSticker = new Map<StickerDatSticker, number>();
 
+  // Strictly inside the piece, since a cut runs along an edge of a sticker and
+  // the rest of the piece stays on one side of it. Pulling it toward the
+  // puzzle's center instead would leave a shallow piece behind.
   const interior = new Vector3();
   for (const { polygon } of piece.stickers) {
     for (const vertex of polygon) {
       interior.addScaledVector(
         vertex,
-        0.5 / polygon.length / piece.stickers.length,
+        1 / polygon.length / piece.stickers.length,
       );
     }
   }
@@ -303,59 +432,87 @@ function newSolidPiece(
     });
   }
 
+  // One cut per edge the piece shares with another piece, which is what bounds
+  // it. Taking every cut the piece happens to sit on one side of instead would
+  // let a plane that only grazes the surface here slice into the body.
+  const pieceKey = `${piece.orbit}/${piece.ord}`;
   for (const { polygon } of piece.stickers) {
     for (let i = 0; i < polygon.length; i++) {
       const a = polygon[i];
       const b = polygon[(i + 1) % polygon.length];
-      const edgeKey = [keyOf(a, sizes.quantum), keyOf(b, sizes.quantum)]
-        .sort()
-        .join("|");
-      const sharing = edges.get(edgeKey);
+      const sharing = cuts.edges.get(
+        [keyOf(a, sizes.quantum), keyOf(b, sizes.quantum)].sort().join("|"),
+      );
       // An edge the piece keeps to itself is a fold in one piece of plastic,
       // not a cut: it stays sharp, and no plane belongs to it.
-      if (sharing && sharing.size === 1 && sharing.has(pieceKey)) {
+      if (!sharing || ![...sharing].some((key) => key !== pieceKey)) {
         continue;
       }
-      const normal = new Vector3().crossVectors(a, b);
-      if (normal.length() < sizes.quantum) {
-        return null; // The cut would have to pass through the puzzle's center.
-      }
-      normal.normalize();
-      if (normal.dot(interior) > 0) {
-        normal.negate();
-      }
-      // The cut plane through this edge and the puzzle's center. On a puzzle
-      // whose cuts don't run through its center this is the wrong plane, and it
-      // gives itself away twice over: it doesn't face along an axis the puzzle
-      // turns about, and it can slice through the piece's own stickers. Check
-      // both, and hand the whole puzzle back to `PG3D` when either fails.
-      if (!axes.some((axis) => Math.abs(axis.dot(normal)) > 0.9999)) {
+      // `cuts.planes` is in order of how much of the puzzle each cut explains,
+      // so the first one holding this edge is the one both pieces settle on.
+      const cut = cuts.planes.find(
+        ({ normal, offset }) =>
+          Math.abs(a.dot(normal) - offset) < sizes.quantum &&
+          Math.abs(b.dot(normal) - offset) < sizes.quantum,
+      );
+      if (!cut) {
         return null;
       }
-      for (const other of piece.stickers) {
-        for (const vertex of other.polygon) {
-          if (vertex.dot(normal) > sizes.quantum) {
-            return null;
-          }
-        }
-      }
+      const outward = interior.dot(cut.normal) < cut.offset;
+      const normal = outward ? cut.normal.clone() : cut.normal.clone().negate();
+      const offset = outward ? cut.offset : -cut.offset;
       if (
         planes.some(
           (plane) =>
             plane.color === null &&
             plane.normal.dot(normal) > 0.9999 &&
-            Math.abs(plane.offset) < sizes.quantum,
+            Math.abs(plane.offset - offset) < sizes.quantum,
         )
       ) {
         continue;
       }
-      planes.push({ normal, offset: 0, color: null });
+      planes.push({ normal, offset, color: null });
     }
   }
 
+  // A cut can also bound the piece from behind, where it never reaches the
+  // surface and so no edge nominates it — the back of a cube's center, say.
+  // Those are the cuts the piece stays clear of entirely; a cut it touches is
+  // one an edge already spoke for, and adding it here would let a plane that
+  // only grazes the surface slice into the body.
+  for (const cut of cuts.planes) {
+    let touches = false;
+    let above = false;
+    let below = false;
+    for (const { polygon } of piece.stickers) {
+      for (const vertex of polygon) {
+        const side = vertex.dot(cut.normal) - cut.offset;
+        if (Math.abs(side) <= sizes.quantum) {
+          touches = true;
+        } else if (side > 0) {
+          above = true;
+        } else {
+          below = true;
+        }
+      }
+    }
+    if (touches || above === below) {
+      continue;
+    }
+    planes.push(
+      above
+        ? {
+            normal: cut.normal.clone().negate(),
+            offset: -cut.offset,
+            color: null,
+          }
+        : { normal: cut.normal.clone(), offset: cut.offset, color: null },
+    );
+  }
+
   const solid = solidPieceGeometry(planes, {
-    groove: SOLID_PIECE_GROOVE * sizes.faceDistance,
-    chamfer: SOLID_PIECE_CHAMFER * sizes.faceDistance,
+    groove: SOLID_PIECE_GROOVE * sizes.featureScale,
+    chamfer: SOLID_PIECE_CHAMFER * sizes.featureScale,
     radius: sizes.radius,
   });
   if (!solid) {
