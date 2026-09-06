@@ -49,9 +49,9 @@ Every WCA event is supported (`222`, `333`, `444`, `555`, `666`, `777`, `333bf`,
 
 - **Stickerless 3D models.** Every 3D puzzle is drawn as solid pieces of colored plastic, lit. Upstream draws flat stickers on a black body.
   - New 3×3×3 pieces: beveled cubies with flat facelets and rounded outlines.
-  - 2×2×2 and 4×4×4 through 7×7×7 use the same pieces, and no longer go through `PG3D`.
-  - Square-1 and Skewb are solid pieces too, with a thin groove between them and a hairline bevel.
-  - Megaminx, Pyraminx and FTO keep the upstream sticker rendering.
+  - 2×2×2 and 4×4×4 through 7×7×7 use the same pieces, cut to size.
+  - Square-1, Skewb, Megaminx, Pyraminx and FTO are solid pieces too, with a thin groove between them and a hairline bevel. Their pieces are cut from the puzzle's own faces and turning axes.
+  - No puzzle this fork ships is drawn with upstream's `PG3D` any more. It stays as the fallback for anything the piece geometry can't be recovered for.
 - **Square-1 in 3D.** New `Square1_3D` visualization strategy, the default for `puzzle="square1"`. Upstream renders Square-1 flat.
 - **Square-1 2D last-layer diagrams.** `visualization="experimental-2D-LL"` on `square1`, with `OLL` and `PLL` stickerings.
 - **Piece separators in the 2D renderer.** Outlines between two halves of a piece hide and reappear as pieces join and split, for Square-1.
@@ -65,7 +65,7 @@ Every WCA event is supported (`222`, `333`, `444`, `555`, `666`, `777`, `333bf`,
 
 ## Rendering performance (caching)
 
-Several per-frame code paths in `cubing/twisty` were doing work that could be skipped. Measured on Chromium as the cost of one `onPositionChange(…)` call with a move in progress (minimum of 7 rounds of 3000 calls), 2026-08-27.
+Several per-frame code paths in `cubing/twisty` were doing work that could be skipped. Measured on Chromium as the cost of one `onPositionChange(…)` call with a move in progress (minimum of 7 rounds of 3000 calls), 2026-08-27, before the stickerless renderers landed. The renderer column is what each side ran at the time.
 
 | Puzzle | Renderer | Upstream | This fork | Change |
 | --- | --- | --- | --- | --- |
