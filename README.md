@@ -47,7 +47,7 @@ Every WCA event is supported (`222`, `333`, `444`, `555`, `666`, `777`, `333bf`,
 
 ## What this fork adds
 
-- **Stickerless 3D models.** Every 3D puzzle is drawn as solid pieces of colored plastic, lit. Upstream draws flat stickers on a black body.
+- **Stickerless 3D models.** Every 3D puzzle is drawn as solid pieces of colored plastic. Upstream draws flat stickers on a black body.
   - New 3×3×3 pieces: beveled cubies with flat facelets and rounded outlines.
   - 2×2×2 and 4×4×4 through 7×7×7 use the same pieces, cut to size.
   - Square-1, Skewb, Megaminx, Pyraminx and FTO are solid pieces too, with a thin groove between them and a hairline bevel. Their pieces are cut from the puzzle's own faces and turning axes.
