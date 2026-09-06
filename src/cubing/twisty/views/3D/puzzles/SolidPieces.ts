@@ -16,11 +16,10 @@ import {
   type VertexRange,
 } from "./SolidPieceGeometry";
 import {
-  BODY_MATERIAL_INDEX,
   type FaceletPlan,
   HINT_FACELET_ELEVATION,
   HINT_FACELET_SCALE,
-  HINT_MATERIAL_INDEX,
+  type PieceMesh,
   type PiecePlan,
   type PuzzlePlan,
   paintInternal,
@@ -519,47 +518,31 @@ function newSolidPiece(
     return null;
   }
 
-  // The hint facelets go after the body, so that each is one contiguous group.
-  const positions = Array.from(solid.positions);
-  const normals = Array.from(solid.normals);
+  // The hint facelets are a mesh of their own: they are drawn with a different
+  // material, so they belong in a different batch.
+  const hintPositions: number[] = [];
   const hintRanges = new Map<StickerDatSticker, VertexRange>();
   for (const { sticker, polygon } of piece.stickers) {
     const normal = outwardNormal(polygon)!;
     const hint = hintPolygon(polygon, normal);
-    const start = positions.length / 3;
+    const start = hintPositions.length / 3;
     for (let i = 1; i < hint.length - 1; i++) {
       for (const vertex of [hint[0], hint[i], hint[i + 1]]) {
-        positions.push(vertex.x, vertex.y, vertex.z);
-        normals.push(normal.x, normal.y, normal.z);
+        hintPositions.push(vertex.x, vertex.y, vertex.z);
       }
     }
     hintRanges.set(sticker, {
       start,
-      count: positions.length / 3 - start,
+      count: hintPositions.length / 3 - start,
     });
   }
 
-  const vertexCount = positions.length / 3;
-  const geometry = new BufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new BufferAttribute(new Float32Array(positions), 3),
-  );
-  geometry.setAttribute(
-    "normal",
-    new BufferAttribute(new Float32Array(normals), 3),
-  );
-  const colors = new BufferAttribute(new Uint8Array(4 * vertexCount), 4, true);
-  geometry.setAttribute("color", colors);
-  geometry.addGroup(0, solid.vertexCount, BODY_MATERIAL_INDEX);
-  if (vertexCount > solid.vertexCount) {
-    geometry.addGroup(
-      solid.vertexCount,
-      vertexCount - solid.vertexCount,
-      HINT_MATERIAL_INDEX,
-    );
-  }
-  paintInternal(colors, solid.internalRanges);
+  const body = newPieceMesh(solid.positions);
+  const hint =
+    hintPositions.length > 0
+      ? newPieceMesh(new Float32Array(hintPositions))
+      : null;
+  paintInternal(body.colors, solid.internalRanges);
 
   const facelets: FaceletPlan[] = piece.stickers.map(({ sticker }) => ({
     ori: sticker.ori,
@@ -581,8 +564,20 @@ function newSolidPiece(
     ord: piece.ord,
     // The geometry is already where the piece belongs.
     home: new Matrix4(),
-    geometry,
-    colors,
+    body,
+    hint,
     facelets,
   };
+}
+
+function newPieceMesh(positions: Float32Array): PieceMesh {
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new BufferAttribute(positions, 3));
+  const colors = new BufferAttribute(
+    new Uint8Array((4 * positions.length) / 3),
+    4,
+    true,
+  );
+  geometry.setAttribute("color", colors);
+  return { geometry, colors };
 }
