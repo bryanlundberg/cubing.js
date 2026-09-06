@@ -119,7 +119,6 @@ export function beveledCubieGeometry(
   const gridSize = samples.length;
 
   const positions: number[] = [];
-  const normals: number[] = [];
   const indices: number[] = [];
 
   const geometry = new BufferGeometry();
@@ -207,14 +206,6 @@ export function beveledCubieGeometry(
           core.y + offset.y * radii.y,
           core.z + offset.z * radii.z,
         );
-        // The ellipsoid's gradient divides by the radius once more than the
-        // point itself does.
-        normals.push(
-          ...offset
-            .set(offset.x / radii.x, offset.y / radii.y, offset.z / radii.z)
-            .normalize()
-            .toArray(),
-        );
       }
     }
 
@@ -232,10 +223,6 @@ export function beveledCubieGeometry(
   geometry.setAttribute(
     "position",
     new BufferAttribute(new Float32Array(positions), 3),
-  );
-  geometry.setAttribute(
-    "normal",
-    new BufferAttribute(new Float32Array(normals), 3),
   );
   geometry.setIndex(indices);
   return geometry;
