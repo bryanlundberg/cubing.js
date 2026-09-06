@@ -198,6 +198,7 @@ export class Twisty3DPuzzleWrapper extends EventTarget implements Schedulable {
           hintFacelets === "auto" ? "floating" : hintFacelets,
           faceletScale,
           false, // `darkIgnoredOrbits`. TODO: generalize per puzzle.
+          !!foundationSprite,
         );
         // TODO: Figure out how to do this in one place using the listener.
         pg3d.then((p) =>
