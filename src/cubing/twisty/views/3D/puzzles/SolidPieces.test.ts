@@ -7,24 +7,33 @@ async function stickerDatFor(puzzleID: string) {
   return pg.get3d({ darkIgnoredOrbits: false });
 }
 
-test("`solidPuzzlePlan` claims the deep-cut puzzles and no others", async () => {
+test("`solidPuzzlePlan` cuts every piece of the puzzles it claims", async () => {
   for (const [puzzleID, pieces] of [
-    // A skewb: eight corners and six centers.
+    // Eight corners and six centers.
     ["skewb", 14],
-    // Cubes are deep-cut only at 2×2×2, and `cubePuzzlePlan` gets first refusal
-    // on those anyway.
+    // Twelve centers, twenty corners and thirty edges.
+    ["megaminx", 62],
+    // Four corners, four of the tips they turn against, and six edges.
+    ["pyraminx", 14],
+    // Six corners, twenty-four centers and twelve edges.
+    ["fto", 42],
+    // `cubePuzzlePlan` gets first refusal on the cubes, but the pieces are here
+    // to be cut all the same.
     ["2x2x2", 8],
+    ["4x4x4", 56],
   ] as const) {
     const plan = solidPuzzlePlan(await stickerDatFor(puzzleID));
     expect(plan, puzzleID).not.toBeNull();
     expect(plan!.pieces.length, puzzleID).toEqual(pieces);
-  }
-  // Cuts that don't run through the center: the plane through a sticker edge
-  // and the puzzle's center is the wrong plane, and it has to be caught.
-  for (const puzzleID of ["megaminx", "pyraminx", "fto", "4x4x4"]) {
-    expect(
-      await solidPuzzlePlan(await stickerDatFor(puzzleID)),
-      puzzleID,
-    ).toBeNull();
+    for (const piece of plan!.pieces) {
+      // Every facelet the puzzle shows is somewhere on its piece. The ones with
+      // nothing to paint are the duplicates stacked on a facelet that has it.
+      const painted = piece.facelets.filter(
+        (facelet) => facelet.body.length > 0,
+      );
+      expect(painted.length, `${puzzleID} ${piece.orbit}/${piece.ord}`).toBe(
+        new Set(piece.facelets.map((facelet) => facelet.faceStyle)).size,
+      );
+    }
   }
 });
