@@ -358,7 +358,6 @@ function stickerlessPieceGeometry(spec: PrismSpec): BufferGeometry {
 
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new BufferAttribute(piece.positions, 3));
-  geometry.setAttribute("normal", new BufferAttribute(piece.normals, 3));
   geometry.setAttribute("color", new BufferAttribute(colors, 4, true));
   return geometry;
 }
