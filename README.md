@@ -47,14 +47,20 @@ Every WCA event is supported (`222`, `333`, `444`, `555`, `666`, `777`, `333bf`,
 
 ## What this fork adds
 
-- **Square-1 in 3D.** New `Square1_3D` visualization strategy, now the default for `puzzle="square1"`. Upstream always rendered Square-1 flat.
+- **Stickerless 3D models.** Every 3D puzzle is drawn as solid pieces of colored plastic, lit. Upstream draws flat stickers on a black body.
+  - New 3×3×3 pieces: beveled cubies with flat facelets and rounded outlines.
+  - 2×2×2 and 4×4×4 through 7×7×7 use the same pieces, and no longer go through `PG3D`.
+  - Square-1 and Skewb are solid pieces too, with a thin groove between them and a hairline bevel.
+  - Megaminx, Pyraminx and FTO keep the upstream sticker rendering.
+- **Square-1 in 3D.** New `Square1_3D` visualization strategy, the default for `puzzle="square1"`. Upstream renders Square-1 flat.
 - **Square-1 2D last-layer diagrams.** `visualization="experimental-2D-LL"` on `square1`, with `OLL` and `PLL` stickerings.
-- **Better 2D Square-1 rendering.** Piece separator support in the SVG renderer: outlines between two halves of a piece hide and reappear as pieces join and split.
-- **5×5×5 2D last-layer diagrams.** `visualization="experimental-2D-LL"` on `5x5x5`, with a cached SVG built from reusable `<use>` elements.
-- **A full stickering set for Megaminx last-layer diagrams.** Alongside `OLL` and `PLL`, three stickerings that do not exist upstream: `OLL-EO` (last-layer center and edges only), `OLL-CO` (last-layer center and corners only), and `PLL-EO` (the side stickers of the last-layer edges only).
-- **Megaminx `PLL` read off the side stickers.** The last-layer face is blanked out instead of dimmed, so permutation comes from the surrounding stickers alone. Upstream dims it to a near-white grey that still reads as the face color.
-- **A face-color border for 2D last-layer diagrams.** An optional ring outside the puzzle outline, colored with the face each side belongs to, as an orientation reference. Controlled by `experimental-face-color-border` / `experimentalFaceColorBorder` (`auto` by default, `none` to hide); the framing tightens back up when it is hidden. Currently drawn by the Megaminx last-layer SVG, and any 2D SVG can opt in.
-- **Palette-agnostic dimming in the 2D renderer.** Upstream hard-codes a dim color per 3×3×3 face; any color outside that table dimmed to `undefined`, which is not a valid `stop-color` and painted the facelet solid black. Colors it does not know are now darkened programmatically, which is what makes the Megaminx diagrams usable.
+- **Piece separators in the 2D renderer.** Outlines between two halves of a piece hide and reappear as pieces join and split, for Square-1.
+- **5×5×5 2D last-layer diagrams.** `visualization="experimental-2D-LL"` on `5x5x5`.
+- **Megaminx 2D last-layer diagrams.** `visualization="experimental-2D-LL"` on `megaminx`. Upstream has no last-layer view for Megaminx.
+- **Four more Megaminx last-layer stickerings.** `OLL-EO` (last-layer center and edges), `OLL-CO` (last-layer center and corners), `PLL-EO` (side stickers of the last-layer edges), `PLL-CP` (side stickers of the last-layer corners).
+- **Megaminx `PLL` read off the side stickers.** The last-layer face is blanked out. Upstream dims it to a near-white grey.
+- **A face-color border for 2D last-layer diagrams.** A ring outside the puzzle outline, colored with the face each side belongs to. Controlled by `experimental-face-color-border` / `experimentalFaceColorBorder` (`auto` by default, `none` to hide). Drawn by the Megaminx last-layer SVG; any 2D SVG can opt in.
+- **Palette-agnostic dimming in the 2D renderer.** Colors outside upstream's per-face table are darkened programmatically instead of dimming to `undefined`, which painted the facelet black.
 - **`L2E` stickering.** Last two edges, for `4x4x4`, `5x5x5` and `6x6x6`, under the Reduction group.
 
 ## Rendering performance (caching)
@@ -70,7 +76,7 @@ Several per-frame code paths in `cubing/twisty` were doing work that could be sk
 | FTO | `PG3D` | 1.93 µs | **1.70 µs** | -12% |
 | 2×2×2 | `PG3D` | 1.40 µs | **1.27 µs** | -9% |
 
-These are small in absolute terms on desktop: a 3×3×3 player drops from roughly 0.67 ms to 0.23 ms of main-thread time per second of animation. It matters for pages with many diagrams, for low-end mobile, and for apps whose main thread is already busy.
+A 3×3×3 player drops from roughly 0.67 ms to 0.23 ms of main-thread time per second of animation.
 
 ## Size improvements
 
@@ -85,11 +91,11 @@ A snapshot, not a live claim: each entry point bundled with `esbuild` (minified,
 
 ### Re-chunking
 
-Upstream bundles several puzzles into a single lazily-loaded chunk. Displaying a 2×2×2 in 2D therefore also downloads the Clock and Square-1 artwork. This fork splits those chunks one-per-puzzle.
+Upstream bundles several puzzles into one lazily-loaded chunk, so displaying a 2×2×2 in 2D also downloads the Clock and Square-1 artwork. This fork splits those chunks one-per-puzzle.
 
 ### Everything is lazily loaded
 
-The numbers that matter are per-scenario, not per-package. Gzipped, `three.js` excluded:
+Per scenario, gzipped, `three.js` excluded:
 
 | Scenario | Download |
 | --- | --- |
