@@ -6,7 +6,6 @@ import { BoxGeometry } from "three/src/geometries/BoxGeometry.js";
 import { TextureLoader } from "three/src/loaders/TextureLoader.js";
 import type { Material } from "three/src/materials/Material.js";
 import { MeshBasicMaterial } from "three/src/materials/MeshBasicMaterial.js";
-import type { MeshPhongMaterial } from "three/src/materials/MeshPhongMaterial.js";
 import { Color } from "three/src/math/Color.js";
 import type { Euler } from "three/src/math/Euler.js";
 import { Matrix4 } from "three/src/math/Matrix4.js";
@@ -37,7 +36,6 @@ import { TAU } from "../TAU";
 import { haveStartedSharingRenderers } from "../Twisty3DVantage";
 import { beveledCubieGeometry } from "./BeveledCubieGeometry";
 import {
-  addCubieBodyLighting,
   bodyMaskColors,
   type CubeFaceStyle,
   cubeFaceStyles,
@@ -113,7 +111,7 @@ class AxisInfo {
   public fromZ: Euler;
   public stickerMaterial: MaterialMap;
   public hintStickerMaterial: MaterialMap;
-  public bodyMaterial: MaterialMap<MeshPhongMaterial>;
+  public bodyMaterial: MaterialMap;
   constructor(style: CubeFaceStyle) {
     const { color, dimColor, hintOpacityScale } = style;
     this.vector = style.vector;
@@ -659,9 +657,6 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
       this.pieces[orbit] = pieceDefs[orbit].map(
         this.createCubie.bind(this, orbit, orbitFaceletInfo),
       );
-    }
-    if (this.#stickerless()) {
-      addCubieBodyLighting(this);
     }
     const scale = cubeScale(this.#stickerless());
     this.scale.set(scale, scale, scale);
