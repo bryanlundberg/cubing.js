@@ -20,7 +20,7 @@ import type { PuzzlePosition } from "../../../controllers/AnimationTypes";
 import { smootherStep } from "../../../controllers/easing";
 import type { HintFaceletStyle } from "../../../model/props/puzzle/display/HintFaceletProp";
 import { TAU } from "../TAU";
-import { addCubieBodyLighting, newVertexColorBodyMaterial } from "./CubieStyle";
+import { newVertexColorBodyMaterial } from "./CubieStyle";
 import type { VertexRange } from "./SolidPieceGeometry";
 import {
   faceletAppearance,
@@ -124,7 +124,6 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
       this.#addPiece(piecePlan);
     }
 
-    addCubieBodyLighting(this);
     for (const face of stickerDat.faces) {
       this.#addControlTarget(face);
     }
