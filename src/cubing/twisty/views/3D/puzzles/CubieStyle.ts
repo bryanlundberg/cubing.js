@@ -14,17 +14,21 @@ import { TAU } from "../TAU";
  * shelf, not two puzzles from two apps.
  */
 
-export interface CubeFaceStyle {
-  /** Outward direction of the face, in cubie-local coordinates. */
-  vector: Vector3;
-  /** Rotation taking a facelet lying in the `z` plane onto this face. */
-  fromZ: Euler;
+/** Everything the color of one facelet depends on. */
+export interface FaceletStyle {
   color: number;
   dimColor: number;
   hintColor: number;
   hintDimColor: number;
   // TODO: make this work better across bright *and* dark backgrounds. Maybe tweak sticker compositing settings?
   hintOpacityScale: number;
+}
+
+export interface CubeFaceStyle extends FaceletStyle {
+  /** Outward direction of the face, in cubie-local coordinates. */
+  vector: Vector3;
+  /** Rotation taking a facelet lying in the `z` plane onto this face. */
+  fromZ: Euler;
 }
 
 /** Indexed `U`, `L`, `F`, `R`, `B`, `D`. */
