@@ -3,8 +3,12 @@ import { BufferAttribute } from "three/src/core/BufferAttribute.js";
 import { BufferGeometry } from "three/src/core/BufferGeometry.js";
 import { Object3D } from "three/src/core/Object3D.js";
 import { BoxGeometry } from "three/src/geometries/BoxGeometry.js";
+import { AmbientLight } from "three/src/lights/AmbientLight.js";
+import { DirectionalLight } from "three/src/lights/DirectionalLight.js";
 import { TextureLoader } from "three/src/loaders/TextureLoader.js";
+import type { Material } from "three/src/materials/Material.js";
 import { MeshBasicMaterial } from "three/src/materials/MeshBasicMaterial.js";
+import { MeshPhongMaterial } from "three/src/materials/MeshPhongMaterial.js";
 import { Color } from "three/src/math/Color.js";
 import { Euler } from "three/src/math/Euler.js";
 import { Matrix4 } from "three/src/math/Matrix4.js";
@@ -33,6 +37,7 @@ import {
 import type { InitialHintFaceletsAnimation } from "../../../model/props/puzzle/display/InitialHintFaceletsAnimationProp";
 import { TAU } from "../TAU";
 import { haveStartedSharingRenderers } from "../Twisty3DVantage";
+import { beveledCubieGeometry } from "./BeveledCubieGeometry";
 import type { Twisty3DPuzzle } from "./Twisty3DPuzzle";
 
 const svgLoader = new TextureLoader();
@@ -85,17 +90,47 @@ const mysterMaterialHint = new MeshBasicMaterial({
   opacity: 0.5,
 });
 
-interface MaterialMap
-  extends Record<FaceletMeshStickeringMask, MeshBasicMaterial> {
-  regular: MeshBasicMaterial;
-  dim: MeshBasicMaterial;
-  ignored: MeshBasicMaterial;
-  invisible: MeshBasicMaterial;
+// Stickerless pieces are molded plastic rather than a decal on a black body,
+// so they need lit materials: with a flat/unlit material the bevels would be
+// invisible and same-colored neighbors would merge into a single blob.
+const BODY_SHININESS = 30;
+const BODY_SPECULAR = 0x0a0a0a;
+
+// `Color` converts sRGB to linear on assignment, and the renderer writes linear
+// values straight out (see `RendererPool`), so every color here has to make the
+// same `convertLinearToSRGB` round trip the sticker materials make — including
+// the specular, which is otherwise quartered and leaves the plastic looking
+// matte.
+function newBodyMaterial(color: Color | number): MeshPhongMaterial {
+  return new MeshPhongMaterial({
+    color:
+      typeof color === "number"
+        ? new Color(color).convertLinearToSRGB()
+        : color,
+    shininess: BODY_SHININESS,
+    specular: new Color(BODY_SPECULAR).convertLinearToSRGB(),
+  });
+}
+
+/** The plastic that shows through the grooves between pieces. */
+const internalBodyMaterial = newBodyMaterial(0x0e0e0e);
+const ignoredBodyMaterial = newBodyMaterial(0x666666);
+const orientedBodyMaterial = newBodyMaterial(0x44ddcc);
+const experimentalOriented2BodyMaterial = newBodyMaterial(0xfffdaa);
+const mysteryBodyMaterial = newBodyMaterial(0xf2cbcb);
+
+interface MaterialMap<T extends Material = MeshBasicMaterial>
+  extends Record<FaceletMeshStickeringMask, T> {
+  regular: T;
+  dim: T;
+  ignored: T;
+  invisible: T;
 }
 
 class AxisInfo {
   public stickerMaterial: MaterialMap;
   public hintStickerMaterial: MaterialMap;
+  public bodyMaterial: MaterialMap<MeshPhongMaterial>;
   constructor(
     public vector: Vector3,
     public fromZ: Euler,
@@ -142,6 +177,17 @@ class AxisInfo {
       ignored: ignoredMaterialHint,
       invisible: invisibleMaterial,
       mystery: mysterMaterialHint,
+    };
+    this.bodyMaterial = {
+      regular: newBodyMaterial(colorLinearSRGB),
+      dim: newBodyMaterial(dimColorLinearSRGB),
+      oriented: orientedBodyMaterial,
+      experimentalOriented2: experimentalOriented2BodyMaterial,
+      ignored: ignoredBodyMaterial,
+      // A solid piece of plastic can't have a hole punched in it, so an
+      // invisible facelet falls back to the internal plastic color.
+      invisible: internalBodyMaterial,
+      mystery: mysteryBodyMaterial,
     };
   }
 }
@@ -243,11 +289,83 @@ const cubieDimensions = {
   stickerElevation: 0.503,
   foundationWidth: 1,
   defaultHintStickerElevation: 1.45,
+  /**
+   * Half-width of a `stickerless` cubie body. Deliberately more than the 0.5
+   * that would make pieces exactly fill their slot: oversized pieces press into
+   * each other, which buries most of each rounded edge inside its neighbor and
+   * keeps the dividing lines thin.
+   */
+  bodyHalfWidth: 0.54,
+  /**
+   * Roll at the rim of a facelet, along the axis the facelet faces — so also
+   * the rounding of the puzzle's own outer edges and corners. Effectively zero,
+   * which leaves those edges sharp and the plates dead flat.
+   *
+   * Not exactly zero: the construction lifts each face off the core box along
+   * this axis, so a true zero leaves nothing to normalize in the middle of a
+   * face. A few thousandths is below a pixel at any sane size.
+   */
+  bodyOuterAxisRadius: 0.004,
+  /**
+   * Rounding along an axis pointing at a neighboring piece, in the middle of an
+   * edge. Sets how wide the dividing line between two pieces reads.
+   */
+  bodyInnerEdgeRadius: 0.07,
+  /**
+   * The same axis at a corner. This one rounds a facelet's corners within its
+   * own plane, so it is what turns a center into a disc, and it costs no
+   * thickness because the roll stays `bodyOuterAxisRadius` deep.
+   */
+  bodyInnerCornerRadius: 0.34,
+  /** How tightly the corner rounding is pulled in toward the corners. */
+  bodyCornerSharpness: 1.3,
+  /**
+   * Everything above, shrunk about each piece's own center. Scaling rather than
+   * trimming the half-width leaves every proportion of the piece untouched and
+   * only opens a gap against its neighbors, so the pieces read as separate with
+   * a thin line of the puzzle's interior showing between them.
+   */
+  bodyPieceScale: 0.95,
+  bodyRoundingSegments: 7,
+  /**
+   * How far back the eight corners of a `stickerless` cubie are shaved, from 0
+   * (not at all) to 1 (all the way back to the edges). This is the only knob
+   * that widens the notch where four pieces meet without also widening the
+   * straight dividing lines.
+   */
+  bodyVertexCut: 0.45,
 };
+
+// three divides irradiance by pi for the Lambert BRDF, and the renderer writes
+// linear values out without an sRGB transfer (see `RendererPool`), so these are
+// scaled to land the brightest facelet at roughly full color instead of a third
+// of it.
+//
+// The key is directional rather than a point light, which means a flat facelet
+// is lit perfectly evenly: the faces differ from each other, but nothing shades
+// across a piece. That is the look of a real cube photographed under diffuse
+// light, and it keeps the pieces reading as flat plates. With the key where it
+// is, the three faces visible from the default camera land at about
+// 1.00 / 0.93 / 0.86 of their color.
+const AMBIENT_LIGHT_INTENSITY = 2.04;
+const KEY_LIGHT_INTENSITY = 1.55;
+// Only reach faces the key misses, so that a piece turning through the puzzle
+// never goes flat black.
+const FILL_LIGHT_INTENSITY = 0.3;
+const RIM_LIGHT_INTENSITY = 0.3;
 const EXPERIMENTAL_PICTURE_CUBE_HINT_ELEVATION = 2;
+
+/**
+ * - `stickers`: flat colored facelets floating above a black body.
+ * - `stickerless`: solid beveled pieces of colored plastic, lit so that the
+ *   bevels read as volume. `showFoundation` and `faceletScale` do not apply,
+ *   since there is no separate foundation or sticker to size.
+ */
+export type ExperimentalCubieStyle = "stickers" | "stickerless";
 
 export interface Cube3DOptions {
   showMainStickers?: boolean;
+  experimentalCubieStyle?: ExperimentalCubieStyle;
   hintFacelets?: HintFaceletStyle;
   showFoundation?: boolean; // TODO: better name
   experimentalStickeringMask?: ExperimentalStickeringMask;
@@ -260,6 +378,7 @@ export interface Cube3DOptions {
 
 const cube3DOptionsDefaults: Cube3DOptions = {
   showMainStickers: true,
+  experimentalCubieStyle: "stickerless",
   hintFacelets: "floating",
   showFoundation: true,
   experimentalStickeringMask: undefined,
@@ -397,10 +516,24 @@ const pieceDefs: PieceIndexed<CubieDef> = {
 
 const CUBE_SCALE = 1 / 3;
 
+// Oversized `stickerless` pieces push the puzzle past the ±1.5 half-extent that
+// `CUBE_SCALE` and the camera framing assume, so scale it back to the same outer
+// size. Reduces to `CUBE_SCALE` at a half-width of 0.5.
+function cubeScale(stickerless: boolean): number {
+  return stickerless
+    ? 0.5 / (1 + cubieDimensions.bodyHalfWidth * cubieDimensions.bodyPieceScale)
+    : CUBE_SCALE;
+}
+
 interface FaceletInfo {
   faceIdx: number;
   facelet: Mesh;
   hintFacelet?: Mesh;
+  /**
+   * Set in `stickerless` mode, where the facelet is one material group of the
+   * shared cubie body instead of a mesh of its own.
+   */
+  bodyMaterialIndex?: number;
 }
 
 // TODO: Compatibility with Randelshofer or standard net layout? Offer a
@@ -562,6 +695,32 @@ function newStickerGeometry(): BufferGeometry {
   return r;
 }
 
+// Keyed by orbit: every cubie in an orbit has its outward faces along the same
+// local axes, so they all share one body.
+const cubieBodyGeometryCache = new Map<string, BufferGeometry>();
+function cubieBodyGeometry(orbit: string, outerAxes: number[]): BufferGeometry {
+  const cached = cubieBodyGeometryCache.get(orbit);
+  if (cached) {
+    return cached;
+  }
+  const scale = cubieDimensions.bodyPieceScale;
+  // The material groups come out indexed like `axesInfo`, so a facelet's group
+  // is the index of the local axis it sits on, and the outward faces are just
+  // the axes this orbit's stickers sit on.
+  const geometry = beveledCubieGeometry(
+    axesInfo.map((axisInfo) => axisInfo.vector),
+    outerAxes,
+    cubieDimensions.bodyHalfWidth * scale,
+    cubieDimensions.bodyOuterAxisRadius * scale,
+    cubieDimensions.bodyInnerEdgeRadius * scale,
+    cubieDimensions.bodyInnerCornerRadius * scale,
+    cubieDimensions.bodyCornerSharpness,
+    cubieDimensions.bodyRoundingSegments,
+  );
+  cubieBodyGeometryCache.set(orbit, geometry);
+  return geometry;
+}
+
 let sharedStickerGeometryCache: BufferGeometry | undefined;
 function sharedStickerGeometry(): BufferGeometry {
   return (sharedStickerGeometryCache ??= newStickerGeometry());
@@ -633,7 +792,11 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
         this.createCubie.bind(this, orbit, orbitFaceletInfo),
       );
     }
-    this.scale.set(CUBE_SCALE, CUBE_SCALE, CUBE_SCALE);
+    if (this.#stickerless()) {
+      this.#addLighting();
+    }
+    const scale = cubeScale(this.#stickerless());
+    this.scale.set(scale, scale, scale);
 
     // TODO: Can we construct this directly instead of applying it later? Would that be more code-efficient?
     if (this.options.experimentalStickeringMask) {
@@ -737,13 +900,49 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
     this.#setHintSpriteURL?.(hintStickerSpriteURL);
   }
 
+  #stickerless(): boolean {
+    return this.options.experimentalCubieStyle === "stickerless";
+  }
+
+  #setFaceletMaterial(
+    faceletInfo: FaceletInfo,
+    mask: FaceletMeshStickeringMask,
+  ): void {
+    const axisInfo = axesInfo[faceletInfo.faceIdx];
+    const { bodyMaterialIndex } = faceletInfo;
+    if (bodyMaterialIndex === undefined) {
+      faceletInfo.facelet.material = axisInfo.stickerMaterial[mask];
+    } else {
+      // The facelet shares its mesh with the rest of the piece, so only its own
+      // material group can change.
+      (faceletInfo.facelet.material as Material[])[bodyMaterialIndex] =
+        axisInfo.bodyMaterial[mask];
+    }
+  }
+
+  // The lights hang off the puzzle rather than the scene: `Twisty3DScene` is
+  // shared with the other (unlit) puzzle renderers, and this way they are added
+  // and removed along with the cube.
+  #addLighting(): void {
+    this.add(new AmbientLight(0xffffff, AMBIENT_LIGHT_INTENSITY));
+    const keyLight = new DirectionalLight(0xffffff, KEY_LIGHT_INTENSITY);
+    keyLight.position.set(3, 5, 4);
+    this.add(keyLight);
+    const fillLight = new DirectionalLight(0xffffff, FILL_LIGHT_INTENSITY);
+    fillLight.position.set(-5, 2, 3);
+    this.add(fillLight);
+    const rimLight = new DirectionalLight(0xffffff, RIM_LIGHT_INTENSITY);
+    rimLight.position.set(-3, -2, -4);
+    this.add(rimLight);
+  }
+
   setStickeringMask(stickeringMask: StickeringMask): void {
     if (stickeringMask.specialBehaviour === "picture") {
       // TODO: if the latest stickering mask was already "picture", don't redo work.
       for (const pieceInfos of Object.values(this.kpuzzleFaceletInfo)) {
         for (const faceletInfos of pieceInfos) {
           for (const faceletInfo of faceletInfos) {
-            faceletInfo.facelet.material = invisibleMaterial;
+            this.#setFaceletMaterial(faceletInfo, "invisible");
             const { hintFacelet } = faceletInfo;
             if (hintFacelet) {
               hintFacelet.material = invisibleMaterial;
@@ -780,8 +979,7 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
                   ? faceletStickeringMask
                   : faceletStickeringMask?.mask;
 
-              faceletInfo.facelet.material =
-                axesInfo[faceletInfo.faceIdx].stickerMaterial[stickeringMask];
+              this.#setFaceletMaterial(faceletInfo, stickeringMask);
               // TODO
               const hintStickeringMask =
                 typeof faceletStickeringMask === "string"
@@ -902,26 +1100,47 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
     const cubieFaceletInfo: FaceletInfo[] = [];
     orbitFacelets.push(cubieFaceletInfo);
     const cubie = new Group();
-    if (this.options.showFoundation) {
+    // In `stickerless` mode the whole piece is one solid mesh, and each of its
+    // six material groups is either an outward facelet color or the internal
+    // plastic that shows through the grooves.
+    const body = this.#stickerless()
+      ? new Mesh(
+          cubieBodyGeometry(
+            orbit,
+            cubieStickerOrder.slice(0, piece.stickerFaces.length),
+          ),
+          axesInfo.map(() => internalBodyMaterial as Material),
+        )
+      : null;
+    if (body) {
+      cubie.add(body);
+    } else if (this.options.showFoundation) {
       const foundation = this.createCubieFoundation();
       cubie.add(foundation);
       this.experimentalFoundationMeshes.push(foundation);
     }
     for (let i = 0; i < piece.stickerFaces.length; i++) {
-      const sticker = this.createSticker(
-        axesInfo[cubieStickerOrder[i]],
-        axesInfo[piece.stickerFaces[i]],
-        false,
-      );
-      const faceletInfo: FaceletInfo = {
-        faceIdx: piece.stickerFaces[i],
-        facelet: sticker,
-      };
-      cubie.add(sticker);
+      const faceIdx = piece.stickerFaces[i];
+      const faceletInfo: FaceletInfo = body
+        ? { faceIdx, facelet: body, bodyMaterialIndex: cubieStickerOrder[i] }
+        : {
+            faceIdx,
+            facelet: this.createSticker(
+              axesInfo[cubieStickerOrder[i]],
+              axesInfo[faceIdx],
+              false,
+            ),
+          };
+      if (body) {
+        (body.material as Material[])[cubieStickerOrder[i]] =
+          axesInfo[faceIdx].bodyMaterial.regular;
+      } else {
+        cubie.add(faceletInfo.facelet);
+      }
       if (this.options.hintFacelets === "floating") {
         const hintSticker = this.createSticker(
           axesInfo[cubieStickerOrder[i]],
-          axesInfo[piece.stickerFaces[i]],
+          axesInfo[faceIdx],
           true,
         );
         cubie.add(hintSticker);
@@ -1089,6 +1308,10 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
 
   /** @deprecated */
   experimentalSetFoundationOpacity(opacity: number): void {
+    // `stickerless` pieces are solid, so there are no foundation meshes.
+    if (this.experimentalFoundationMeshes.length === 0) {
+      return;
+    }
     (
       this.experimentalFoundationMeshes[0].material as MeshBasicMaterial
     ).opacity = opacity;
@@ -1101,8 +1324,12 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
       for (const pieceInfo of orbitInfo) {
         for (const faceletInfo of pieceInfo) {
           const scale = getFaceletScale(this.options);
-          faceletInfo.facelet.scale.setX(scale);
-          faceletInfo.facelet.scale.setY(scale);
+          // A `stickerless` facelet is part of the piece itself; scaling it
+          // would resize the whole cubie.
+          if (faceletInfo.bodyMaterialIndex === undefined) {
+            faceletInfo.facelet.scale.setX(scale);
+            faceletInfo.facelet.scale.setY(scale);
+          }
           faceletInfo.hintFacelet?.scale.setX(scale);
           faceletInfo.hintFacelet?.scale.setY(scale);
           // faceletInfo.facelet.setRotationFromAxisAngle(new Vector3(0, 1, 0), 0);
