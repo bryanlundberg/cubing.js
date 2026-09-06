@@ -11,11 +11,10 @@ import {
 } from "./CubieStyle";
 import type { VertexRange } from "./SolidPieceGeometry";
 import {
-  BODY_MATERIAL_INDEX,
   type FaceletPlan,
   HINT_FACELET_ELEVATION,
   HINT_FACELET_SCALE,
-  HINT_MATERIAL_INDEX,
+  type PieceMesh,
   type PiecePlan,
   type PuzzlePlan,
   paintInternal,
@@ -210,12 +209,12 @@ export function cubeLayout(stickerDat: StickerDat): CubeLayout | null {
  * colors.
  */
 interface CubieShape {
-  position: BufferAttribute;
-  normal: BufferAttribute;
-  index: BufferAttribute;
-  vertexCount: number;
-  bodyIndexCount: number;
-  hintIndexCount: number;
+  bodyPosition: BufferAttribute;
+  bodyIndex: BufferAttribute;
+  bodyVertexCount: number;
+  hintPosition: BufferAttribute;
+  hintIndex: BufferAttribute;
+  hintVertexCount: number;
   /** Vertex range of each face of the body, indexed like `cubeFaceStyles`. */
   faceVertexRanges: VertexRange[];
   /** Vertex range of the hint facelet of each outward face. */
@@ -235,7 +234,6 @@ function newCubieShape(outwardFaces: number[], slotWidth: number): CubieShape {
     cubieBodyDimensions.roundingSegments,
   );
   const bodyPositions = body.getAttribute("position").array as Float32Array;
-  const bodyNormals = body.getAttribute("normal").array as Float32Array;
   const bodyIndices = Array.from(body.getIndex()!.array);
 
   const faceVertexRanges: VertexRange[] = [];
@@ -249,9 +247,10 @@ function newCubieShape(outwardFaces: number[], slotWidth: number): CubieShape {
     faceVertexRanges[group.materialIndex!] = { start, count: end - start };
   }
 
-  const positions: number[] = Array.from(bodyPositions);
-  const normals: number[] = Array.from(bodyNormals);
-  const indices: number[] = bodyIndices.slice();
+  // The hint facelets are a mesh of their own: they are drawn with a different
+  // material, so they belong in a different batch.
+  const hintPositions: number[] = [];
+  const hintIndices: number[] = [];
   const hintVertexRanges = new Map<number, VertexRange>();
 
   const hintHalfWidth = (HINT_FACELET_SCALE * slotWidth) / 2;
@@ -265,7 +264,7 @@ function newCubieShape(outwardFaces: number[], slotWidth: number): CubieShape {
     // quad below winds counter-clockwise as seen from outside the puzzle.
     u.set(normal.y, normal.z, normal.x);
     v.crossVectors(normal, u);
-    const start = positions.length / 3;
+    const start = hintPositions.length / 3;
     for (const [su, sv] of [
       [-1, -1],
       [1, -1],
@@ -277,48 +276,51 @@ function newCubieShape(outwardFaces: number[], slotWidth: number): CubieShape {
         .multiplyScalar(hintDistance)
         .addScaledVector(u, su * hintHalfWidth)
         .addScaledVector(v, sv * hintHalfWidth);
-      positions.push(corner.x, corner.y, corner.z);
-      normals.push(normal.x, normal.y, normal.z);
+      hintPositions.push(corner.x, corner.y, corner.z);
     }
-    indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
+    hintIndices.push(start, start + 1, start + 2, start, start + 2, start + 3);
     hintVertexRanges.set(faceIdx, { start, count: 4 });
   }
 
   body.dispose();
   return {
-    position: new BufferAttribute(new Float32Array(positions), 3),
-    normal: new BufferAttribute(new Float32Array(normals), 3),
-    index: new BufferAttribute(new Uint16Array(indices), 1),
-    vertexCount: positions.length / 3,
-    bodyIndexCount: bodyIndices.length,
-    hintIndexCount: indices.length - bodyIndices.length,
+    bodyPosition: new BufferAttribute(bodyPositions.slice(), 3),
+    bodyIndex: new BufferAttribute(new Uint16Array(bodyIndices), 1),
+    bodyVertexCount: bodyPositions.length / 3,
+    hintPosition: new BufferAttribute(new Float32Array(hintPositions), 3),
+    hintIndex: new BufferAttribute(new Uint16Array(hintIndices), 1),
+    hintVertexCount: hintPositions.length / 3,
     faceVertexRanges,
     hintVertexRanges,
   };
 }
 
-function newCubiePiece(cubie: CubieLayout, shape: CubieShape): PiecePlan {
+function newPieceMesh(
+  position: BufferAttribute,
+  index: BufferAttribute,
+  vertexCount: number,
+): PieceMesh {
   const geometry = new BufferGeometry();
-  geometry.setAttribute("position", shape.position);
-  geometry.setAttribute("normal", shape.normal);
-  geometry.setIndex(shape.index);
-  const colors = new BufferAttribute(
-    new Uint8Array(4 * shape.vertexCount),
-    4,
-    true,
-  );
+  geometry.setAttribute("position", position);
+  geometry.setIndex(index);
+  const colors = new BufferAttribute(new Uint8Array(4 * vertexCount), 4, true);
   geometry.setAttribute("color", colors);
-  geometry.addGroup(0, shape.bodyIndexCount, BODY_MATERIAL_INDEX);
-  if (shape.hintIndexCount > 0) {
-    geometry.addGroup(
-      shape.bodyIndexCount,
-      shape.hintIndexCount,
-      HINT_MATERIAL_INDEX,
-    );
-  }
+  return { geometry, colors };
+}
+
+function newCubiePiece(cubie: CubieLayout, shape: CubieShape): PiecePlan {
+  const body = newPieceMesh(
+    shape.bodyPosition,
+    shape.bodyIndex,
+    shape.bodyVertexCount,
+  );
+  const hint =
+    shape.hintVertexCount > 0
+      ? newPieceMesh(shape.hintPosition, shape.hintIndex, shape.hintVertexCount)
+      : null;
   // Every face starts out as the plastic inside the puzzle; the ones that point
   // out of it are painted over by the first `onPositionChange`.
-  paintInternal(colors, shape.faceVertexRanges);
+  paintInternal(body.colors, shape.faceVertexRanges);
 
   const facelets: FaceletPlan[] = cubie.stickers.map((sticker) => ({
     ori: sticker.ori,
@@ -334,8 +336,8 @@ function newCubiePiece(cubie: CubieLayout, shape: CubieShape): PiecePlan {
     orbit: cubie.orbit,
     ord: cubie.ord,
     home: new Matrix4().setPosition(cubie.center),
-    geometry,
-    colors,
+    body,
+    hint,
     facelets,
   };
 }
