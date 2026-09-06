@@ -129,7 +129,7 @@ export const cubieBodyDimensions = {
    * a thin line of the puzzle's interior showing between them.
    */
   pieceScale: 0.95,
-  roundingSegments: 7,
+  roundingSegments: 3,
 };
 
 /**
