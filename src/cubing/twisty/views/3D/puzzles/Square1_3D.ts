@@ -3,7 +3,6 @@ import { BufferAttribute } from "three/src/core/BufferAttribute.js";
 import { BufferGeometry } from "three/src/core/BufferGeometry.js";
 import { Object3D } from "three/src/core/Object3D.js";
 import { MeshBasicMaterial } from "three/src/materials/MeshBasicMaterial.js";
-import type { MeshPhongMaterial } from "three/src/materials/MeshPhongMaterial.js";
 import { Color } from "three/src/math/Color.js";
 import { Quaternion } from "three/src/math/Quaternion.js";
 import { Vector3 } from "three/src/math/Vector3.js";
@@ -14,11 +13,7 @@ import type { ExperimentalStickeringMask } from "../../../../puzzles/cubing-priv
 import type { PuzzlePosition } from "../../../controllers/AnimationTypes";
 import { smootherStep } from "../../../controllers/easing";
 import { TAU } from "../TAU";
-import {
-  addCubieBodyLighting,
-  bodyMaskColors,
-  newVertexColorBodyMaterial,
-} from "./CubieStyle";
+import { bodyMaskColors, newVertexColorBodyMaterial } from "./CubieStyle";
 import {
   type PiecePlane,
   solidPieceGeometry,
@@ -373,8 +368,8 @@ const bodyMaterial = new MeshBasicMaterial({
   side: DoubleSide,
 });
 
-let stickerlessMaterialCache: MeshPhongMaterial | undefined;
-function stickerlessMaterial(): MeshPhongMaterial {
+let stickerlessMaterialCache: MeshBasicMaterial | undefined;
+function stickerlessMaterial(): MeshBasicMaterial {
   return (stickerlessMaterialCache ??= newVertexColorBodyMaterial());
 }
 
@@ -592,9 +587,6 @@ export class Square1_3D extends Object3D implements Twisty3DPuzzle {
       this.add(equator);
     }
 
-    if (this.#stickerless) {
-      addCubieBodyLighting(this);
-    }
     this.scale.set(PUZZLE_SCALE, PUZZLE_SCALE, PUZZLE_SCALE);
   }
 
