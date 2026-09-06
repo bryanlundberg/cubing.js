@@ -2,6 +2,7 @@ import { cube3x3x3, type PuzzleLoader } from "../../../puzzles";
 import type { FaceletScale } from "../../model/props/puzzle/display/FaceletScaleProp";
 import type { HintFaceletStyle } from "../../model/props/puzzle/display/HintFaceletProp";
 import { Cube3D, type Cube3DOptions } from "../../views/3D/puzzles/Cube3D";
+import { CubeNxN3D, cubeLayout } from "../../views/3D/puzzles/CubeNxN3D";
 import { PG3D } from "../../views/3D/puzzles/PG3D";
 import { Square1_3D } from "../../views/3D/puzzles/Square1_3D";
 
@@ -16,6 +17,7 @@ export { WebGLRenderer as ThreeWebGLRenderer } from "three/src/renderers/WebGLRe
 export { Scene as ThreeScene } from "three/src/scenes/Scene.js";
 
 export { Cube3D } from "../../views/3D/puzzles/Cube3D";
+export { CubeNxN3D } from "../../views/3D/puzzles/CubeNxN3D";
 export { PG3D } from "../../views/3D/puzzles/PG3D";
 export { Square1_3D } from "../../views/3D/puzzles/Square1_3D";
 export { Twisty3DScene } from "../../views/3D/Twisty3DScene";
@@ -44,11 +46,25 @@ export async function pg3dShim(
   hintFacelets: HintFaceletStyle,
   faceletScale: FaceletScale,
   darkIgnoredOrbits: boolean,
-): Promise<PG3D> {
+  // A picture cube needs a sticker to print on, and a stickerless piece has
+  // none, so leave those to `PG3D` as well.
+  pictureCube: boolean = false,
+): Promise<PG3D | CubeNxN3D> {
+  const kpuzzle = await puzzleLoader.kpuzzle();
+  const stickerDat = (await puzzleLoader.pg!()).get3d({ darkIgnoredOrbits });
+  // Every N×N×N cube gets the same solid pieces the 3×3×3 gets from `Cube3D`.
+  // `PG3D` still draws everything else — and any cube we can't make sense of.
+  const layout =
+    darkIgnoredOrbits || pictureCube ? null : cubeLayout(stickerDat);
+  if (layout) {
+    return new CubeNxN3D(renderCallback, kpuzzle, stickerDat, layout, {
+      hintFacelets,
+    });
+  }
   return new PG3D(
     renderCallback,
-    await puzzleLoader.kpuzzle(),
-    (await puzzleLoader.pg!()).get3d({ darkIgnoredOrbits }),
+    kpuzzle,
+    stickerDat,
     true,
     hintFacelets === "floating",
     undefined,
