@@ -1,7 +1,4 @@
-import type { Object3D } from "three/src/core/Object3D.js";
-import { AmbientLight } from "three/src/lights/AmbientLight.js";
-import { DirectionalLight } from "three/src/lights/DirectionalLight.js";
-import { MeshPhongMaterial } from "three/src/materials/MeshPhongMaterial.js";
+import { MeshBasicMaterial } from "three/src/materials/MeshBasicMaterial.js";
 import { Color } from "three/src/math/Color.js";
 import { Euler } from "three/src/math/Euler.js";
 import { Vector3 } from "three/src/math/Vector3.js";
@@ -149,25 +146,22 @@ export function cubieBodyHalfExtent(layers: number): number {
   );
 }
 
-// Stickerless pieces are molded plastic rather than a decal on a black body,
-// so they need lit materials: with a flat/unlit material the bevels would be
-// invisible and same-colored neighbors would merge into a single blob.
-const BODY_SHININESS = 30;
-const BODY_SPECULAR = 0x0a0a0a;
-
+// Unlit, so that a facelet is its color and nothing else. A light would have to
+// be fixed either to the puzzle or to the camera, and both give themselves away:
+// fixed to the puzzle it reads as a lamp taped to one face, which turns with the
+// cube on a smart-cube feed; fixed to the camera it makes the same facelet
+// change shade as the cube is turned. What separates the pieces is the dark
+// plastic in the grooves between them, which needs no light to read.
+//
 // `Color` converts sRGB to linear on assignment, and the renderer writes linear
 // values straight out (see `RendererPool`), so every color here has to make the
-// same `convertLinearToSRGB` round trip the sticker materials make — including
-// the specular, which is otherwise quartered and leaves the plastic looking
-// matte.
-export function newBodyMaterial(color: Color | number): MeshPhongMaterial {
-  return new MeshPhongMaterial({
+// same `convertLinearToSRGB` round trip the sticker materials make.
+export function newBodyMaterial(color: Color | number): MeshBasicMaterial {
+  return new MeshBasicMaterial({
     color:
       typeof color === "number"
         ? new Color(color).convertLinearToSRGB()
         : color,
-    shininess: BODY_SHININESS,
-    specular: new Color(BODY_SPECULAR).convertLinearToSRGB(),
   });
 }
 
@@ -176,7 +170,7 @@ export function newBodyMaterial(color: Color | number): MeshPhongMaterial {
  * renderers that put many pieces into one mesh instead of giving each facelet
  * its own material.
  */
-export function newVertexColorBodyMaterial(): MeshPhongMaterial {
+export function newVertexColorBodyMaterial(): MeshBasicMaterial {
   const material = newBodyMaterial(0xffffff);
   material.vertexColors = true;
   return material;
@@ -199,39 +193,3 @@ export const hintMaskStyles = {
   experimentalOriented2: { color: 0xfff979, opacity: 0.5 },
   mystery: { color: 0xf2cbcb, opacity: 0.5 },
 };
-
-// three divides irradiance by pi for the Lambert BRDF, and the renderer writes
-// linear values out without an sRGB transfer (see `RendererPool`), so these are
-// scaled to land the brightest facelet at roughly full color instead of a third
-// of it.
-//
-// The key is directional rather than a point light, which means a flat facelet
-// is lit perfectly evenly: the faces differ from each other, but nothing shades
-// across a piece. That is the look of a real cube photographed under diffuse
-// light, and it keeps the pieces reading as flat plates. With the key where it
-// is, the three faces visible from the default camera land at about
-// 1.00 / 0.93 / 0.86 of their color.
-const AMBIENT_LIGHT_INTENSITY = 2.04;
-const KEY_LIGHT_INTENSITY = 1.55;
-// Only reach faces the key misses, so that a piece turning through the puzzle
-// never goes flat black.
-const FILL_LIGHT_INTENSITY = 0.3;
-const RIM_LIGHT_INTENSITY = 0.3;
-
-/**
- * The lights hang off the puzzle rather than the scene: `Twisty3DScene` is
- * shared with the other (unlit) puzzle renderers, and this way they are added
- * and removed along with the puzzle.
- */
-export function addCubieBodyLighting(target: Object3D): void {
-  target.add(new AmbientLight(0xffffff, AMBIENT_LIGHT_INTENSITY));
-  const keyLight = new DirectionalLight(0xffffff, KEY_LIGHT_INTENSITY);
-  keyLight.position.set(3, 5, 4);
-  target.add(keyLight);
-  const fillLight = new DirectionalLight(0xffffff, FILL_LIGHT_INTENSITY);
-  fillLight.position.set(-5, 2, 3);
-  target.add(fillLight);
-  const rimLight = new DirectionalLight(0xffffff, RIM_LIGHT_INTENSITY);
-  rimLight.position.set(-3, -2, -4);
-  target.add(rimLight);
-}
