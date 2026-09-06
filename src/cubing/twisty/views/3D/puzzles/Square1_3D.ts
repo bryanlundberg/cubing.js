@@ -3,6 +3,7 @@ import { BufferAttribute } from "three/src/core/BufferAttribute.js";
 import { BufferGeometry } from "three/src/core/BufferGeometry.js";
 import { Object3D } from "three/src/core/Object3D.js";
 import { MeshBasicMaterial } from "three/src/materials/MeshBasicMaterial.js";
+import type { MeshPhongMaterial } from "three/src/materials/MeshPhongMaterial.js";
 import { Color } from "three/src/math/Color.js";
 import { Quaternion } from "three/src/math/Quaternion.js";
 import { Vector3 } from "three/src/math/Vector3.js";
@@ -13,6 +14,16 @@ import type { ExperimentalStickeringMask } from "../../../../puzzles/cubing-priv
 import type { PuzzlePosition } from "../../../controllers/AnimationTypes";
 import { smootherStep } from "../../../controllers/easing";
 import { TAU } from "../TAU";
+import {
+  addCubieBodyLighting,
+  bodyMaskColors,
+  newVertexColorBodyMaterial,
+} from "./CubieStyle";
+import {
+  type PiecePlane,
+  solidPieceGeometry,
+  type VertexRange,
+} from "./SolidPieceGeometry";
 import type { Twisty3DPuzzle } from "./Twisty3DPuzzle";
 
 const DEGREE = TAU / 360;
@@ -269,10 +280,103 @@ function stickerPositions(
   return new Float32Array(out);
 }
 
+/**
+ * How far a side that meets another piece is cut back, and how wide the bevel
+ * around a colored face is. Sized so that the groove between two pieces reads
+ * about as wide as the one between two cubies of the 3×3×3.
+ */
+const PIECE_GROOVE_HALF_WIDTH = 0.018;
+const PIECE_CHAMFER = 0.005;
+/** How far the puzzle reaches from its center, for the geometry's tolerances. */
+const PUZZLE_RADIUS = CUBE_HALF_EDGE * Math.SQRT2;
+
+/**
+ * The planes bounding one piece: the top and bottom of the prism, plus one per
+ * side of its cross-section. A side with no color is a cut, where this piece
+ * meets the next one.
+ */
+function prismPlanes(spec: PrismSpec): PiecePlane[] {
+  const { polygon, sideColors } = spec;
+  const planes: PiecePlane[] = [
+    { normal: new Vector3(0, 1, 0), offset: spec.yTop, color: spec.topColor },
+    {
+      normal: new Vector3(0, -1, 0),
+      offset: -spec.yBottom,
+      color: spec.bottomColor,
+    },
+  ];
+  let centroidX = 0;
+  let centroidZ = 0;
+  for (const [x, z] of polygon) {
+    centroidX += x / polygon.length;
+    centroidZ += z / polygon.length;
+  }
+  for (let i = 0; i < polygon.length; i++) {
+    const [x0, z0] = polygon[i];
+    const [x1, z1] = polygon[(i + 1) % polygon.length];
+    const normal = new Vector3(z1 - z0, 0, -(x1 - x0)).normalize();
+    if (normal.x * (x0 - centroidX) + normal.z * (z0 - centroidZ) < 0) {
+      normal.negate();
+    }
+    planes.push({
+      normal,
+      offset: normal.x * x0 + normal.z * z0,
+      color: sideColors[i] ?? null,
+    });
+  }
+  return planes;
+}
+
+/**
+ * The whole piece as one solid of colored plastic: every face the puzzle shows
+ * takes its own color, every side that meets another piece is cut back to the
+ * plastic inside. There is no sticker and no separate foundation.
+ */
+function stickerlessPieceGeometry(spec: PrismSpec): BufferGeometry {
+  const planes = prismPlanes(spec);
+  const piece = solidPieceGeometry(planes, {
+    groove: PIECE_GROOVE_HALF_WIDTH,
+    chamfer: PIECE_CHAMFER,
+    radius: PUZZLE_RADIUS,
+  });
+  if (!piece) {
+    throw new Error("Could not build a Square-1 piece out of its planes.");
+  }
+  const colors = new Uint8Array(4 * piece.vertexCount);
+  const paint = (ranges: VertexRange[], color: number) => {
+    for (const range of ranges) {
+      for (let i = range.start; i < range.start + range.count; i++) {
+        colors[4 * i] = (color >> 16) & 0xff;
+        colors[4 * i + 1] = (color >> 8) & 0xff;
+        colors[4 * i + 2] = color & 0xff;
+        colors[4 * i + 3] = 0xff;
+      }
+    }
+  };
+  paint(piece.internalRanges, bodyMaskColors.internal);
+  for (let i = 0; i < planes.length; i++) {
+    const color = planes[i].color;
+    if (color !== null) {
+      paint(piece.ranges[i], color);
+    }
+  }
+
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new BufferAttribute(piece.positions, 3));
+  geometry.setAttribute("normal", new BufferAttribute(piece.normals, 3));
+  geometry.setAttribute("color", new BufferAttribute(colors, 4, true));
+  return geometry;
+}
+
 const bodyMaterial = new MeshBasicMaterial({
   color: new Color(BODY_COLOR).convertLinearToSRGB(),
   side: DoubleSide,
 });
+
+let stickerlessMaterialCache: MeshPhongMaterial | undefined;
+function stickerlessMaterial(): MeshPhongMaterial {
+  return (stickerlessMaterialCache ??= newVertexColorBodyMaterial());
+}
 
 const stickerMaterialCache = new Map<number, MeshBasicMaterial>();
 function stickerMaterial(color: number): MeshBasicMaterial {
@@ -289,11 +393,20 @@ function stickerMaterial(color: number): MeshBasicMaterial {
 
 class Square1Piece extends Group {
   readonly body: Mesh;
-  readonly #stickerSpecs: StickerSpec[];
+  readonly #stickerSpecs: StickerSpec[] = [];
   readonly #stickerMeshes: Mesh[] = [];
 
-  constructor(spec: PrismSpec, faceletScale: number) {
+  constructor(spec: PrismSpec, faceletScale: number, stickerless: boolean) {
     super();
+
+    if (stickerless) {
+      this.body = new Mesh(
+        stickerlessPieceGeometry(spec),
+        stickerlessMaterial(),
+      );
+      this.add(this.body);
+      return;
+    }
 
     const bodyGeometry = new BufferGeometry();
     bodyGeometry.setAttribute(
@@ -330,7 +443,10 @@ class Square1Piece extends Group {
   }
 
   setFoundationVisible(visible: boolean): void {
-    this.body.visible = visible;
+    // A stickerless piece is nothing but its body.
+    if (this.#stickerMeshes.length > 0) {
+      this.body.visible = visible;
+    }
   }
 }
 
@@ -390,7 +506,16 @@ function ringColorAt(phiDegrees: number): number {
   return RING_COLORS[((faceIndex % 4) + 4) % 4];
 }
 
+/**
+ * - `stickers`: flat colored facelets floating above a black body.
+ * - `stickerless`: solid pieces of colored plastic, lit so that the faces read
+ *   as separate planes. `showFoundation` and `faceletScale` do not apply, since
+ *   there is no separate foundation or sticker to size.
+ */
+export type ExperimentalWedgeStyle = "stickers" | "stickerless";
+
 export interface Square1_3DOptions {
+  experimentalWedgeStyle?: ExperimentalWedgeStyle;
   showFoundation?: boolean;
   faceletScale?: "auto" | number;
   hintFacelets?: unknown;
@@ -403,6 +528,7 @@ export class Square1_3D extends Object3D implements Twisty3DPuzzle {
   #equatorPieces: Square1Piece[] = [];
   #faceletScale: number = DEFAULT_FACELET_SCALE;
   #showFoundation = true;
+  #stickerless = true;
 
   #slotOfPiece = new Int8Array(2 * WEDGES_PER_LAYER);
   #slotMoveMask = new Uint8Array(2 * WEDGES_PER_LAYER);
@@ -429,9 +555,16 @@ export class Square1_3D extends Object3D implements Twisty3DPuzzle {
     if (typeof options.showFoundation === "boolean") {
       this.#showFoundation = options.showFoundation;
     }
+    if (options.experimentalWedgeStyle) {
+      this.#stickerless = options.experimentalWedgeStyle === "stickerless";
+    }
 
     for (let piece = 0; piece < 2 * WEDGES_PER_LAYER; piece++) {
-      const wedge = new Square1Piece(wedgePrismSpec(piece), this.#faceletScale);
+      const wedge = new Square1Piece(
+        wedgePrismSpec(piece),
+        this.#faceletScale,
+        this.#stickerless,
+      );
       wedge.setFoundationVisible(this.#showFoundation);
       wedge.quaternion.copy(SLOT_QUATERNIONS[piece]);
       this.#wedgePieces.push(wedge);
@@ -441,6 +574,7 @@ export class Square1_3D extends Object3D implements Twisty3DPuzzle {
       const corner = new Square1Piece(
         cornerPrismSpec(pair),
         this.#faceletScale,
+        this.#stickerless,
       );
       corner.setFoundationVisible(this.#showFoundation);
       corner.visible = false; // Until `onPositionChange` decides.
@@ -451,12 +585,16 @@ export class Square1_3D extends Object3D implements Twisty3DPuzzle {
       const equator = new Square1Piece(
         equatorPrismSpec(piece),
         this.#faceletScale,
+        this.#stickerless,
       );
       equator.setFoundationVisible(this.#showFoundation);
       this.#equatorPieces.push(equator);
       this.add(equator);
     }
 
+    if (this.#stickerless) {
+      addCubieBodyLighting(this);
+    }
     this.scale.set(PUZZLE_SCALE, PUZZLE_SCALE, PUZZLE_SCALE);
   }
 
