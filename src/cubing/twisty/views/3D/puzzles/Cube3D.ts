@@ -3,14 +3,12 @@ import { BufferAttribute } from "three/src/core/BufferAttribute.js";
 import { BufferGeometry } from "three/src/core/BufferGeometry.js";
 import { Object3D } from "three/src/core/Object3D.js";
 import { BoxGeometry } from "three/src/geometries/BoxGeometry.js";
-import { AmbientLight } from "three/src/lights/AmbientLight.js";
-import { DirectionalLight } from "three/src/lights/DirectionalLight.js";
 import { TextureLoader } from "three/src/loaders/TextureLoader.js";
 import type { Material } from "three/src/materials/Material.js";
 import { MeshBasicMaterial } from "three/src/materials/MeshBasicMaterial.js";
-import { MeshPhongMaterial } from "three/src/materials/MeshPhongMaterial.js";
+import type { MeshPhongMaterial } from "three/src/materials/MeshPhongMaterial.js";
 import { Color } from "three/src/math/Color.js";
-import { Euler } from "three/src/math/Euler.js";
+import type { Euler } from "three/src/math/Euler.js";
 import { Matrix4 } from "three/src/math/Matrix4.js";
 import { Quaternion } from "three/src/math/Quaternion.js";
 import { Vector2 } from "three/src/math/Vector2.js";
@@ -38,86 +36,69 @@ import type { InitialHintFaceletsAnimation } from "../../../model/props/puzzle/d
 import { TAU } from "../TAU";
 import { haveStartedSharingRenderers } from "../Twisty3DVantage";
 import { beveledCubieGeometry } from "./BeveledCubieGeometry";
+import {
+  addCubieBodyLighting,
+  bodyMaskColors,
+  type CubeFaceStyle,
+  cubeFaceStyles,
+  cubieBodyDimensions,
+  cubieBodyHalfExtent,
+  hintMaskStyles,
+  newBodyMaterial,
+} from "./CubieStyle";
 import type { Twisty3DPuzzle } from "./Twisty3DPuzzle";
 
 const svgLoader = new TextureLoader();
 
+function newHintMaterial(style: {
+  color: number;
+  opacity: number;
+}): MeshBasicMaterial {
+  return new MeshBasicMaterial({
+    color: new Color(style.color).convertLinearToSRGB(),
+    side: BackSide,
+    transparent: true,
+    opacity: style.opacity,
+  });
+}
+
 const ignoredMaterial = new MeshBasicMaterial({
-  color: new Color(0x666666).convertLinearToSRGB(),
+  color: new Color(bodyMaskColors.ignored).convertLinearToSRGB(),
 });
 
-const ignoredMaterialHint = new MeshBasicMaterial({
-  color: new Color(0xcccccc).convertLinearToSRGB(),
-  side: BackSide,
-  transparent: true,
-  opacity: 0.75,
-});
+const ignoredMaterialHint = newHintMaterial(hintMaskStyles.ignored);
 
 const invisibleMaterial = new MeshBasicMaterial({
   visible: false,
 });
 
 const orientedMaterial = new MeshBasicMaterial({
-  color: 0x44ddcc,
+  color: bodyMaskColors.oriented,
 });
 
-const orientedMaterialHint = new MeshBasicMaterial({
-  color: 0x44ddcc,
-  side: BackSide,
-  transparent: true,
-  opacity: 0.5,
-});
+const orientedMaterialHint = newHintMaterial(hintMaskStyles.oriented);
 
 const experimentalOriented2Material = new MeshBasicMaterial({
-  color: 0xfffdaa,
+  color: bodyMaskColors.experimentalOriented2,
 });
 
-const experimentalOriented2MaterialHint = new MeshBasicMaterial({
-  color: 0xfff979,
-  side: BackSide,
-  transparent: true,
-  opacity: 0.5,
-});
+const experimentalOriented2MaterialHint = newHintMaterial(
+  hintMaskStyles.experimentalOriented2,
+);
 
 const mysteryMaterial = new MeshBasicMaterial({
-  color: 0xf2cbcb,
+  color: bodyMaskColors.mystery,
 });
 
-const mysterMaterialHint = new MeshBasicMaterial({
-  color: 0xf2cbcb,
-  side: BackSide,
-  transparent: true,
-  opacity: 0.5,
-});
+const mysterMaterialHint = newHintMaterial(hintMaskStyles.mystery);
 
-// Stickerless pieces are molded plastic rather than a decal on a black body,
-// so they need lit materials: with a flat/unlit material the bevels would be
-// invisible and same-colored neighbors would merge into a single blob.
-const BODY_SHININESS = 30;
-const BODY_SPECULAR = 0x0a0a0a;
-
-// `Color` converts sRGB to linear on assignment, and the renderer writes linear
-// values straight out (see `RendererPool`), so every color here has to make the
-// same `convertLinearToSRGB` round trip the sticker materials make — including
-// the specular, which is otherwise quartered and leaves the plastic looking
-// matte.
-function newBodyMaterial(color: Color | number): MeshPhongMaterial {
-  return new MeshPhongMaterial({
-    color:
-      typeof color === "number"
-        ? new Color(color).convertLinearToSRGB()
-        : color,
-    shininess: BODY_SHININESS,
-    specular: new Color(BODY_SPECULAR).convertLinearToSRGB(),
-  });
-}
-
-/** The plastic that shows through the grooves between pieces. */
-const internalBodyMaterial = newBodyMaterial(0x0e0e0e);
-const ignoredBodyMaterial = newBodyMaterial(0x666666);
-const orientedBodyMaterial = newBodyMaterial(0x44ddcc);
-const experimentalOriented2BodyMaterial = newBodyMaterial(0xfffdaa);
-const mysteryBodyMaterial = newBodyMaterial(0xf2cbcb);
+const internalBodyMaterial = newBodyMaterial(bodyMaskColors.internal);
+const ignoredBodyMaterial = newBodyMaterial(bodyMaskColors.ignored);
+const orientedBodyMaterial = newBodyMaterial(bodyMaskColors.oriented);
+const experimentalOriented2BodyMaterial = newBodyMaterial(
+  bodyMaskColors.experimentalOriented2,
+);
+const mysteryBodyMaterial = newBodyMaterial(bodyMaskColors.mystery);
 
 interface MaterialMap<T extends Material = MeshBasicMaterial>
   extends Record<FaceletMeshStickeringMask, T> {
@@ -128,17 +109,15 @@ interface MaterialMap<T extends Material = MeshBasicMaterial>
 }
 
 class AxisInfo {
+  public vector: Vector3;
+  public fromZ: Euler;
   public stickerMaterial: MaterialMap;
   public hintStickerMaterial: MaterialMap;
   public bodyMaterial: MaterialMap<MeshPhongMaterial>;
-  constructor(
-    public vector: Vector3,
-    public fromZ: Euler,
-    public color: number,
-    public dimColor: number,
-    public hintOpacityScale: number, // TODO: make this work better across bright *and* dark backgrounds. Maybe tweak sticker compositing settings?
-    options?: { hintColor?: number; hintDimColor?: number },
-  ) {
+  constructor(style: CubeFaceStyle) {
+    const { color, dimColor, hintOpacityScale } = style;
+    this.vector = style.vector;
+    this.fromZ = style.fromZ;
     const colorLinearSRGB = new Color(color).convertLinearToSRGB();
     const dimColorLinearSRGB = new Color(dimColor).convertLinearToSRGB();
     // TODO: Make sticker material single-sided when cubie foundation is opaque?
@@ -158,18 +137,12 @@ class AxisInfo {
       mystery: mysteryMaterial,
     };
     this.hintStickerMaterial = {
-      regular: new MeshBasicMaterial({
-        color: new Color(options?.hintColor ?? color).convertLinearToSRGB(),
-        side: BackSide,
-        transparent: true,
+      regular: newHintMaterial({
+        color: style.hintColor,
         opacity: 0.5 * hintOpacityScale,
       }),
-      dim: new MeshBasicMaterial({
-        color: new Color(
-          options?.hintDimColor ?? dimColor,
-        ).convertLinearToSRGB(),
-        side: BackSide,
-        transparent: true,
+      dim: newHintMaterial({
+        color: style.hintDimColor,
         opacity: 0.5 * hintOpacityScale,
       }),
       oriented: orientedMaterialHint,
@@ -192,55 +165,7 @@ class AxisInfo {
   }
 }
 
-const axesInfo: AxisInfo[] = [
-  new AxisInfo(
-    new Vector3(0, 1, 0),
-    new Euler(-TAU / 4, 0, 0),
-    0xffffff,
-    0xdddddd,
-    1.25,
-  ),
-  new AxisInfo(
-    new Vector3(-1, 0, 0),
-    new Euler(0, -TAU / 4, 0),
-    0xff9900,
-    0x885500,
-    1,
-    { hintDimColor: 0x884400 },
-  ),
-  new AxisInfo(
-    new Vector3(0, 0, 1),
-    new Euler(0, 0, 0),
-    0x00ff00,
-    0x008800,
-    1,
-    { hintDimColor: 0x009900 },
-  ),
-  new AxisInfo(
-    new Vector3(1, 0, 0),
-    new Euler(0, TAU / 4, 0),
-    0xff0000,
-    0x660000,
-    1,
-    { hintDimColor: 0x660000 },
-  ),
-  new AxisInfo(
-    new Vector3(0, 0, -1),
-    new Euler(0, TAU / 2, 0),
-    0x2266ff,
-    0x113388,
-    0.75,
-    { hintDimColor: 0x001866 },
-  ),
-  new AxisInfo(
-    new Vector3(0, -1, 0),
-    new Euler(TAU / 4, 0, 0),
-    0xffff00,
-    0x888800,
-    1.25,
-    { hintDimColor: 0xdddd00 },
-  ),
-];
+const axesInfo: AxisInfo[] = cubeFaceStyles.map((style) => new AxisInfo(style));
 
 const face: { [s: string]: number } = {
   U: 0,
@@ -290,44 +215,6 @@ const cubieDimensions = {
   foundationWidth: 1,
   defaultHintStickerElevation: 1.45,
   /**
-   * Half-width of a `stickerless` cubie body. Deliberately more than the 0.5
-   * that would make pieces exactly fill their slot: oversized pieces press into
-   * each other, which buries most of each rounded edge inside its neighbor and
-   * keeps the dividing lines thin.
-   */
-  bodyHalfWidth: 0.54,
-  /**
-   * Roll at the rim of a facelet, along the axis the facelet faces — so also
-   * the rounding of the puzzle's own outer edges and corners. Effectively zero,
-   * which leaves those edges sharp and the plates dead flat.
-   *
-   * Not exactly zero: the construction lifts each face off the core box along
-   * this axis, so a true zero leaves nothing to normalize in the middle of a
-   * face. A few thousandths is below a pixel at any sane size.
-   */
-  bodyOuterAxisRadius: 0.004,
-  /**
-   * Rounding along an axis pointing at a neighboring piece, in the middle of an
-   * edge. Sets how wide the dividing line between two pieces reads.
-   */
-  bodyInnerEdgeRadius: 0.07,
-  /**
-   * The same axis at a corner. This one rounds a facelet's corners within its
-   * own plane, so it is what turns a center into a disc, and it costs no
-   * thickness because the roll stays `bodyOuterAxisRadius` deep.
-   */
-  bodyInnerCornerRadius: 0.34,
-  /** How tightly the corner rounding is pulled in toward the corners. */
-  bodyCornerSharpness: 1.3,
-  /**
-   * Everything above, shrunk about each piece's own center. Scaling rather than
-   * trimming the half-width leaves every proportion of the piece untouched and
-   * only opens a gap against its neighbors, so the pieces read as separate with
-   * a thin line of the puzzle's interior showing between them.
-   */
-  bodyPieceScale: 0.95,
-  bodyRoundingSegments: 7,
-  /**
    * How far back the eight corners of a `stickerless` cubie are shaved, from 0
    * (not at all) to 1 (all the way back to the edges). This is the only knob
    * that widens the notch where four pieces meet without also widening the
@@ -336,23 +223,6 @@ const cubieDimensions = {
   bodyVertexCut: 0.45,
 };
 
-// three divides irradiance by pi for the Lambert BRDF, and the renderer writes
-// linear values out without an sRGB transfer (see `RendererPool`), so these are
-// scaled to land the brightest facelet at roughly full color instead of a third
-// of it.
-//
-// The key is directional rather than a point light, which means a flat facelet
-// is lit perfectly evenly: the faces differ from each other, but nothing shades
-// across a piece. That is the look of a real cube photographed under diffuse
-// light, and it keeps the pieces reading as flat plates. With the key where it
-// is, the three faces visible from the default camera land at about
-// 1.00 / 0.93 / 0.86 of their color.
-const AMBIENT_LIGHT_INTENSITY = 2.04;
-const KEY_LIGHT_INTENSITY = 1.55;
-// Only reach faces the key misses, so that a piece turning through the puzzle
-// never goes flat black.
-const FILL_LIGHT_INTENSITY = 0.3;
-const RIM_LIGHT_INTENSITY = 0.3;
 const EXPERIMENTAL_PICTURE_CUBE_HINT_ELEVATION = 2;
 
 /**
@@ -520,9 +390,7 @@ const CUBE_SCALE = 1 / 3;
 // `CUBE_SCALE` and the camera framing assume, so scale it back to the same outer
 // size. Reduces to `CUBE_SCALE` at a half-width of 0.5.
 function cubeScale(stickerless: boolean): number {
-  return stickerless
-    ? 0.5 / (1 + cubieDimensions.bodyHalfWidth * cubieDimensions.bodyPieceScale)
-    : CUBE_SCALE;
+  return stickerless ? 0.5 / cubieBodyHalfExtent(3) : CUBE_SCALE;
 }
 
 interface FaceletInfo {
@@ -703,19 +571,19 @@ function cubieBodyGeometry(orbit: string, outerAxes: number[]): BufferGeometry {
   if (cached) {
     return cached;
   }
-  const scale = cubieDimensions.bodyPieceScale;
+  const scale = cubieBodyDimensions.pieceScale;
   // The material groups come out indexed like `axesInfo`, so a facelet's group
   // is the index of the local axis it sits on, and the outward faces are just
   // the axes this orbit's stickers sit on.
   const geometry = beveledCubieGeometry(
     axesInfo.map((axisInfo) => axisInfo.vector),
     outerAxes,
-    cubieDimensions.bodyHalfWidth * scale,
-    cubieDimensions.bodyOuterAxisRadius * scale,
-    cubieDimensions.bodyInnerEdgeRadius * scale,
-    cubieDimensions.bodyInnerCornerRadius * scale,
-    cubieDimensions.bodyCornerSharpness,
-    cubieDimensions.bodyRoundingSegments,
+    cubieBodyDimensions.halfWidth * scale,
+    cubieBodyDimensions.outerAxisRadius * scale,
+    cubieBodyDimensions.innerEdgeRadius * scale,
+    cubieBodyDimensions.innerCornerRadius * scale,
+    cubieBodyDimensions.cornerSharpness,
+    cubieBodyDimensions.roundingSegments,
   );
   cubieBodyGeometryCache.set(orbit, geometry);
   return geometry;
@@ -793,7 +661,7 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
       );
     }
     if (this.#stickerless()) {
-      this.#addLighting();
+      addCubieBodyLighting(this);
     }
     const scale = cubeScale(this.#stickerless());
     this.scale.set(scale, scale, scale);
@@ -918,22 +786,6 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
       (faceletInfo.facelet.material as Material[])[bodyMaterialIndex] =
         axisInfo.bodyMaterial[mask];
     }
-  }
-
-  // The lights hang off the puzzle rather than the scene: `Twisty3DScene` is
-  // shared with the other (unlit) puzzle renderers, and this way they are added
-  // and removed along with the cube.
-  #addLighting(): void {
-    this.add(new AmbientLight(0xffffff, AMBIENT_LIGHT_INTENSITY));
-    const keyLight = new DirectionalLight(0xffffff, KEY_LIGHT_INTENSITY);
-    keyLight.position.set(3, 5, 4);
-    this.add(keyLight);
-    const fillLight = new DirectionalLight(0xffffff, FILL_LIGHT_INTENSITY);
-    fillLight.position.set(-5, 2, 3);
-    this.add(fillLight);
-    const rimLight = new DirectionalLight(0xffffff, RIM_LIGHT_INTENSITY);
-    rimLight.position.set(-3, -2, -4);
-    this.add(rimLight);
   }
 
   setStickeringMask(stickeringMask: StickeringMask): void {
