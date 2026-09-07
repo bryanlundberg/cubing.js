@@ -44,6 +44,7 @@ import {
   hintMaskStyles,
   newBodyMaterial,
 } from "./CubieStyle";
+import { newLogoMesh, rectangleLogoSurface, surfaceMatrix } from "./PuzzleLogo";
 import type { Twisty3DPuzzle } from "./Twisty3DPuzzle";
 
 const svgLoader = new TextureLoader();
@@ -220,6 +221,14 @@ const cubieDimensions = {
    */
   bodyVertexCut: 0.45,
 };
+
+/**
+ * The piece a logo is printed on: the white center, which is `CENTERS` piece 0
+ * showing its only facelet.
+ */
+const LOGO_PIECE = { orbit: "CENTERS", ord: 0, faceletIdx: 0 };
+/** How far the logo floats off the face, in cubie widths. */
+const LOGO_ELEVATION = 0.01;
 
 const EXPERIMENTAL_PICTURE_CUBE_HINT_ELEVATION = 2;
 
@@ -896,7 +905,9 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
     }
   }
 
+  #lastPosition: PuzzlePosition | null = null;
   public onPositionChange(p: PuzzlePosition): void {
+    this.#lastPosition = p;
     const reid333 = p.pattern;
     for (const orbit in pieceDefs) {
       const pieces = pieceDefs[orbit];
@@ -933,6 +944,8 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
         }
       }
     }
+    // After the pieces, since the logo rides on one of them.
+    this.#placeLogo(p);
     this.scheduleRenderCallback!();
   }
 
@@ -1151,6 +1164,96 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
     stickerMesh.scale.setY(scale);
     stickerMesh.translateZ(elevation - 1);
     return stickerMesh;
+  }
+
+  #logoMesh: Mesh | null = null;
+  /** The logo's placement on its facelet, in the piece's own frame. */
+  #logoSurface: Matrix4 | null = null;
+  #logoPieceMatrix = new Matrix4();
+  /**
+   * Prints a logo on the white center, or takes it off again when passed
+   * `null`.
+   *
+   * The image is stretched onto a square sized to the piece, so its own
+   * proportions don't matter. It rides the piece, so a rotation of the whole
+   * cube carries it to whichever face the white center ends up on.
+   */
+  experimentalSetLogo(texture: Texture | null): void {
+    if (this.#logoMesh) {
+      this.#logoMesh.removeFromParent();
+      (this.#logoMesh.material as MeshBasicMaterial).dispose();
+      this.#logoMesh = null;
+      this.#logoSurface = null;
+    }
+    if (texture) {
+      // The facelet's own axis in cubie-local coordinates, which for the first
+      // facelet of a piece is the first of `cubieStickerOrder`.
+      const normal = axesInfo[cubieStickerOrder[LOGO_PIECE.faceletIdx]].vector;
+      const u = new Vector3(normal.y, normal.z, normal.x);
+      const v = new Vector3().crossVectors(normal, u);
+      const surface = rectangleLogoSurface(
+        normal.clone().multiplyScalar(this.#faceletDistance() + LOGO_ELEVATION),
+        // Half-axes of the facelet, which is one cubie wide.
+        u.multiplyScalar(0.5),
+        v.multiplyScalar(0.5),
+      );
+      this.#logoMesh = newLogoMesh(texture);
+      this.#logoSurface = surfaceMatrix(surface, new Matrix4());
+      this.add(this.#logoMesh);
+      if (this.#lastPosition) {
+        this.#placeLogo(this.#lastPosition);
+      }
+    }
+    this.scheduleRenderCallback?.();
+  }
+
+  /**
+   * Puts the logo where its piece is.
+   *
+   * Almost all of this is the piece's own matrix, but not quite: the 3×3×3's
+   * `KPuzzle` does not track how a center is turned (`orientationMod` is 1),
+   * so a `U` ends in the state it started in as far as the white center is
+   * concerned. Riding that animation would spin the logo through the turn and
+   * snap it back at the end, so a move that leaves the piece in its own slot
+   * leaves the logo alone. A move that carries the piece elsewhere — a cube
+   * rotation — still takes the logo with it.
+   */
+  #placeLogo(p: PuzzlePosition): void {
+    const mesh = this.#logoMesh;
+    if (!mesh || !this.#logoSurface) {
+      return;
+    }
+    const { orbit, ord } = LOGO_PIECE;
+    const orbitPattern = p.pattern.patternData[orbit];
+    const slot = orbitPattern.pieces.indexOf(ord);
+    if (slot === -1) {
+      mesh.visible = false;
+      return;
+    }
+    mesh.visible = true;
+    const untracked = orbitPattern.orientationMod?.[slot] === 1;
+    const staysPut =
+      untracked &&
+      p.movesInProgress.every(
+        (moveProgress) =>
+          this.kpuzzle.moveToTransformation(
+            moveProgress.move.modified({ amount: 1 }),
+          ).transformationData[orbit].permutation[slot] === slot,
+      );
+    const pieceMatrix = staysPut
+      ? this.#logoPieceMatrix
+          .copy(pieceDefs[orbit][slot].matrix)
+          .multiply(orientationRotation[orbit][orbitPattern.orientation[slot]])
+      : this.pieces[orbit][ord].matrix;
+    mesh.matrix.multiplyMatrices(pieceMatrix, this.#logoSurface);
+    mesh.matrixWorldNeedsUpdate = true;
+  }
+
+  /** How far a facelet's surface sits from the center of its cubie. */
+  #faceletDistance(): number {
+    return this.#stickerless()
+      ? cubieBodyDimensions.halfWidth * cubieBodyDimensions.pieceScale
+      : cubieDimensions.stickerElevation;
   }
 
   /** @deprecated */

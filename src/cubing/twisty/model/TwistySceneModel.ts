@@ -32,6 +32,7 @@ export class TwistySceneModel {
   faceColorBorder = new FaceColorBorderProp();
   hintFacelet = new HintFaceletProp();
   hintStickerSpriteURL = new URLProp();
+  logoSpriteURL = new URLProp();
   initialHintFaceletsAnimation = new InitialHintFaceletsAnimationProp();
   hintFaceletsElevation = new HintFaceletsElevationProp();
   latitudeLimit = new LatitudeLimitProp();
@@ -53,6 +54,9 @@ export class TwistySceneModel {
   });
   hintStickerSprite = new SpriteProp({
     spriteURL: this.hintStickerSpriteURL,
+  });
+  logoSprite = new SpriteProp({
+    spriteURL: this.logoSpriteURL,
   });
 
   // Dependence on TwistyPlayerModel

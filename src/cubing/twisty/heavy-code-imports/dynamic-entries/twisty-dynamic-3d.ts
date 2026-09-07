@@ -4,6 +4,7 @@ import type { HintFaceletStyle } from "../../model/props/puzzle/display/HintFace
 import { Cube3D, type Cube3DOptions } from "../../views/3D/puzzles/Cube3D";
 import { cubePuzzlePlan } from "../../views/3D/puzzles/CubePieces";
 import { PG3D } from "../../views/3D/puzzles/PG3D";
+import { logoFaceletAddress } from "../../views/3D/puzzles/PuzzleLogo";
 import { solidPuzzlePlan } from "../../views/3D/puzzles/SolidPieces";
 import { Square1_3D } from "../../views/3D/puzzles/Square1_3D";
 import { Stickerless3D } from "../../views/3D/puzzles/Stickerless3D";
@@ -63,6 +64,7 @@ export async function pg3dShim(
   if (plan) {
     return new Stickerless3D(renderCallback, kpuzzle, stickerDat, plan, {
       hintFacelets,
+      logoFacelet: logoFaceletAddress(puzzleLoader.id, stickerDat),
     });
   }
   return new PG3D(

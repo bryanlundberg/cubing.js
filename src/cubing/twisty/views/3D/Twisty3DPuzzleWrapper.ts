@@ -107,6 +107,22 @@ export class Twisty3DPuzzleWrapper extends EventTarget implements Schedulable {
       },
     );
 
+    this.#freshListenerManager.addListener(
+      this.model.twistySceneModel.logoSprite,
+      async (logoSprite: ThreeTexture | null) => {
+        const twisty3D = await this.twisty3DPuzzle();
+        // Not every renderer has a piece to print a logo on.
+        if ("experimentalSetLogo" in twisty3D) {
+          (
+            twisty3D as {
+              experimentalSetLogo(texture: ThreeTexture | null): void;
+            }
+          ).experimentalSetLogo(logoSprite);
+          this.scheduleRender();
+        }
+      },
+    );
+
     this.#freshListenerManager.addMultiListener3(
       [
         this.model.twistySceneModel.stickeringMask,

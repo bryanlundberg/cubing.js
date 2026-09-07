@@ -22,6 +22,12 @@ import { smootherStep } from "../../../controllers/easing";
 import type { HintFaceletStyle } from "../../../model/props/puzzle/display/HintFaceletProp";
 import { TAU } from "../TAU";
 import { newVertexColorBodyMaterial } from "./CubieStyle";
+import {
+  type FaceletAddress,
+  type FaceletSurface,
+  newLogoMesh,
+  surfaceMatrix,
+} from "./PuzzleLogo";
 import type { VertexRange } from "./SolidPieceGeometry";
 import {
   faceletAppearance,
@@ -95,6 +101,8 @@ interface FaceletSlot {
   /** The masks this facelet contributes when another slot displays it. */
   mask: FaceletMeshStickeringMask;
   hintMask: FaceletMeshStickeringMask;
+  /** Where a logo shown in this slot sits, in the piece's own frame. */
+  logo: FaceletSurface | null;
 }
 
 interface AxisInfo {
@@ -105,6 +113,8 @@ interface AxisInfo {
 export interface Stickerless3DOptions {
   hintFacelets?: HintFaceletStyle;
   stickeringMask?: ExperimentalStickeringMask;
+  /** The facelet {@link Stickerless3D.experimentalSetLogo} prints on. */
+  logoFacelet?: FaceletAddress | null;
 }
 
 export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
@@ -133,6 +143,11 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
   #dirtyColors = new Map<BufferAttribute, { first: number; last: number }>();
   #lastPosition: PuzzlePosition | null = null;
   #pendingStickeringUpdate = false;
+  /** The facelet a logo is printed on, and where it currently shows. */
+  #logoFacelet: FaceletAddress | null = null;
+  #logoMesh: Mesh | null = null;
+  #logoSlot: FaceletSlot | null = null;
+  #logoSurfaceMatrix = new Matrix4();
 
   constructor(
     private scheduleRenderCallback: () => void,
@@ -142,6 +157,7 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
     options: Stickerless3DOptions = {},
   ) {
     super();
+    this.#logoFacelet = options.logoFacelet ?? null;
     this.#hintMaterial = new MeshBasicMaterial({
       vertexColors: true,
       transparent: true,
@@ -234,6 +250,7 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
         appearanceKey: -1,
         mask: "regular",
         hintMask: "regular",
+        logo: facelet.logo,
       };
     }
   }
@@ -271,7 +288,95 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
     this.#controlTargets.push(mesh);
   }
 
+  /**
+   * Prints a logo on the piece this puzzle keeps one on, or takes it off again
+   * when passed `null`.
+   *
+   * The image is stretched onto the square {@link PuzzlePlan} sized for that
+   * facelet, so its own proportions don't matter. It follows the piece: the
+   * logo is drawn wherever the piece currently is, including part-way through a
+   * move. The one thing it does not follow is a piece turning in place — a
+   * megaminx or skewb center whose facelets are all one square — which leaves
+   * the logo upright rather than rotating it with the plastic.
+   */
+  experimentalSetLogo(texture: Texture | null): void {
+    if (!texture || !this.#logoFacelet) {
+      this.#disposeLogo();
+      this.scheduleRenderCallback();
+      return;
+    }
+    if (this.#logoMesh) {
+      const material = this.#logoMesh.material as MeshBasicMaterial;
+      material.map = texture;
+      material.needsUpdate = true;
+    } else {
+      this.#logoMesh = newLogoMesh(texture);
+      this.add(this.#logoMesh);
+    }
+    this.#updateLogoSlot();
+    this.#placeLogo();
+    this.scheduleRenderCallback();
+  }
+
+  #disposeLogo(): void {
+    if (!this.#logoMesh) {
+      return;
+    }
+    this.remove(this.#logoMesh);
+    (this.#logoMesh.material as MeshBasicMaterial).dispose();
+    this.#logoMesh = null;
+    this.#logoSlot = null;
+  }
+
+  /** Which slot is showing the logo's facelet, as of the last position. */
+  #updateLogoSlot(): void {
+    this.#logoSlot = null;
+    const address = this.#logoFacelet;
+    const pattern = this.#lastPosition?.pattern;
+    if (!address || !pattern) {
+      return;
+    }
+    const orbitFacelets = this.#facelets[address.orbit];
+    const orbitPattern = pattern.patternData[address.orbit];
+    if (!orbitFacelets || !orbitPattern) {
+      return;
+    }
+    const numOrientations = orbitFacelets.length;
+    for (let ord = 0; ord < orbitPattern.pieces.length; ord++) {
+      if (orbitPattern.pieces[ord] !== address.ord) {
+        continue;
+      }
+      // The mirror of the lookup in `#updateColors`: a piece's own facelet
+      // comes around to the slot facelet its orientation has carried it to.
+      const ori =
+        numOrientations === 1
+          ? 0
+          : (address.ori + orbitPattern.orientation[ord]) % numOrientations;
+      this.#logoSlot = orbitFacelets[ori]?.[ord] ?? null;
+      return;
+    }
+  }
+
+  #placeLogo(): void {
+    const mesh = this.#logoMesh;
+    if (!mesh) {
+      return;
+    }
+    const slot = this.#logoSlot;
+    if (!slot?.logo) {
+      mesh.visible = false;
+      return;
+    }
+    mesh.visible = true;
+    mesh.matrix.multiplyMatrices(
+      slot.piece.matrix,
+      surfaceMatrix(slot.logo, this.#logoSurfaceMatrix),
+    );
+    mesh.matrixWorldNeedsUpdate = true;
+  }
+
   dispose(): void {
+    this.#disposeLogo();
     this.#bodyBatch.dispose();
     this.#bodyBatch.geometry.dispose();
     this.#hintBatch?.dispose();
@@ -425,6 +530,7 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
       this.#updateColors(position);
       this.#lastPosition = position;
       this.#pendingStickeringUpdate = false;
+      this.#updateLogoSlot();
     }
 
     const wereTurning = this.#turningPieces;
@@ -471,6 +577,8 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
     for (const piece of this.#turningPieces) {
       this.#setMatrix(piece);
     }
+    // After the matrices, since the logo rides on whichever piece is under it.
+    this.#placeLogo();
 
     this.scheduleRenderCallback();
   }

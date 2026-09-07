@@ -8,12 +8,19 @@ import { Quaternion } from "three/src/math/Quaternion.js";
 import { Vector3 } from "three/src/math/Vector3.js";
 import { Group } from "three/src/objects/Group.js";
 import { Mesh } from "three/src/objects/Mesh.js";
+import type { Texture } from "three/src/textures/Texture.js";
 import type { KPuzzle } from "../../../../kpuzzle";
 import type { ExperimentalStickeringMask } from "../../../../puzzles/cubing-private";
 import type { PuzzlePosition } from "../../../controllers/AnimationTypes";
 import { smootherStep } from "../../../controllers/easing";
 import { TAU } from "../TAU";
 import { bodyMaskColors, newVertexColorBodyMaterial } from "./CubieStyle";
+import {
+  type FaceletSurface,
+  newLogoMesh,
+  rectangleLogoSurface,
+  surfaceMatrix,
+} from "./PuzzleLogo";
 import {
   type PiecePlane,
   solidPieceGeometry,
@@ -495,6 +502,49 @@ function equatorPrismSpec(homePiece: number): PrismSpec {
   };
 }
 
+/**
+ * Where a logo goes on a Square-1: the equator, which is the one piece of the
+ * puzzle that is a block rather than a wedge, on the side of it that is a whole
+ * face of the cube. The two slivers to either side of that face are too narrow
+ * to print on.
+ */
+const LOGO_EQUATOR_PIECE = 0;
+/** How far the logo floats off the face, clear of a sticker at the same spot. */
+const LOGO_ELEVATION = 2 * STICKER_ELEVATION;
+
+function equatorLogoSurface(spec: PrismSpec): FaceletSurface | null {
+  const { polygon, yBottom, yTop, sideColors } = spec;
+  let best: FaceletSurface | null = null;
+  let bestWidth = 0;
+  for (let i = 0; i < polygon.length; i++) {
+    if (sideColors[i] === null || sideColors[i] === undefined) {
+      continue;
+    }
+    const [x0, z0] = polygon[i];
+    const [x1, z1] = polygon[(i + 1) % polygon.length];
+    const width = Math.hypot(x1 - x0, z1 - z0);
+    if (width <= bestWidth) {
+      continue;
+    }
+    const normal = new Vector3(z1 - z0, 0, -(x1 - x0)).normalize();
+    const u = new Vector3(x1 - x0, 0, z1 - z0).multiplyScalar(0.5);
+    const v = new Vector3(0, (yTop - yBottom) / 2, 0);
+    // `v` points up, so `u` is whichever way around the face leaves the logo
+    // facing out of the puzzle rather than into it.
+    if (new Vector3().crossVectors(u, v).dot(normal) < 0) {
+      u.negate();
+    }
+    const center = new Vector3(
+      (x0 + x1) / 2,
+      (yBottom + yTop) / 2,
+      (z0 + z1) / 2,
+    ).addScaledVector(normal, LOGO_ELEVATION);
+    bestWidth = width;
+    best = rectangleLogoSurface(center, u, v);
+  }
+  return best;
+}
+
 function ringColorAt(phiDegrees: number): number {
   const faceIndex = Math.round(phiDegrees / 90);
   return RING_COLORS[((faceIndex % 4) + 4) % 4];
@@ -692,6 +742,32 @@ export class Square1_3D extends Object3D implements Twisty3DPuzzle {
   }
 
   setStickeringMask(_stickeringMask: ExperimentalStickeringMask): void {}
+
+  #logoMesh: Mesh | null = null;
+  /**
+   * Prints a logo on the equator block, or takes it off again when passed
+   * `null`.
+   *
+   * The image is stretched onto a square sized to the face, so its own
+   * proportions don't matter. It is a child of the piece, so it turns and flips
+   * with the equator.
+   */
+  experimentalSetLogo(texture: Texture | null): void {
+    if (this.#logoMesh) {
+      this.#logoMesh.removeFromParent();
+      (this.#logoMesh.material as MeshBasicMaterial).dispose();
+      this.#logoMesh = null;
+    }
+    if (texture) {
+      const surface = equatorLogoSurface(equatorPrismSpec(LOGO_EQUATOR_PIECE));
+      if (surface) {
+        this.#logoMesh = newLogoMesh(texture);
+        surfaceMatrix(surface, this.#logoMesh.matrix);
+        this.#equatorPieces[LOGO_EQUATOR_PIECE].add(this.#logoMesh);
+      }
+    }
+    this.scheduleRenderCallback?.();
+  }
 
   experimentalUpdateOptions(options: Square1_3DOptions): void {
     let changed = false;

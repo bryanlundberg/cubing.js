@@ -255,6 +255,21 @@ export abstract class TwistyPlayerSettable extends ManagedCustomElement {
     throw err("experimentalHintSprite");
   }
 
+  /**
+   * An image printed on one piece of the puzzle, the way a brand prints a logo
+   * on the white center of a 3×3×3. 3D only, and only on the puzzles that take
+   * one — everything but the FTO and the clock.
+   *
+   * The image is stretched onto a square sized to the piece, so it comes out
+   * the same size whatever the image's own dimensions are.
+   */
+  set experimentalLogo(url: string | URL | null) {
+    this.experimentalModel.twistySceneModel.logoSpriteURL.set(url);
+  }
+  get experimentalLogo(): never {
+    throw err("experimentalLogo");
+  }
+
   set fullscreenElement(element: Element | null) {
     this.experimentalModel.twistySceneModel.fullscreenElement.set(element);
   }

@@ -94,6 +94,7 @@ export const twistyPlayerAttributeMap = {
   // URL-based
   "experimental-sprite": "experimentalSprite",
   "experimental-hint-sprite": "experimentalHintSprite",
+  "experimental-logo": "experimentalLogo",
 };
 
 export type TwistyPlayerAttribute = keyof typeof twistyPlayerAttributeMap;
@@ -170,6 +171,7 @@ export interface TwistyPlayerConfig {
   // URL-based
   experimentalSprite?: string | null;
   experimentalHintSprite?: string | null;
+  experimentalLogo?: string | null;
   // TODO: Not supported as attributes
   experimentalMovePressCancelOptions?: AppendCancelOptions; // TODO: Support setting via a simplified attribute enum?
 }

@@ -9,6 +9,7 @@ import {
   cubieBodyDimensions,
   cubieBodyHalfExtent,
 } from "./CubieStyle";
+import { type FaceletSurface, rectangleLogoSurface } from "./PuzzleLogo";
 import type { VertexRange } from "./SolidPieceGeometry";
 import {
   type FaceletPlan,
@@ -33,6 +34,9 @@ import {
 const PG_SCALE = 0.5; // Matches `PG3D`, so that the camera framing carries over.
 
 const FACE_COUNT = 6;
+
+/** How far a logo floats off the face it is printed on, in slot widths. */
+const LOGO_ELEVATION = 0.01;
 
 /** One cell of the puzzle: which faces of it point out, and where it sits. */
 interface CubieLayout {
@@ -219,6 +223,8 @@ interface CubieShape {
   faceVertexRanges: VertexRange[];
   /** Vertex range of the hint facelet of each outward face. */
   hintVertexRanges: Map<number, VertexRange>;
+  /** Where a logo would sit on each outward face, in the cubie's own frame. */
+  logoSurfaces: Map<number, FaceletSurface>;
 }
 
 function newCubieShape(outwardFaces: number[], slotWidth: number): CubieShape {
@@ -255,6 +261,11 @@ function newCubieShape(outwardFaces: number[], slotWidth: number): CubieShape {
 
   const hintHalfWidth = (HINT_FACELET_SCALE * slotWidth) / 2;
   const hintDistance = slotWidth / 2 + HINT_FACELET_ELEVATION;
+  // A facelet is the whole outward face of the cubie, so a logo on it is a
+  // square of the piece's own width, resting on the plastic.
+  const logoSurfaces = new Map<number, FaceletSurface>();
+  const faceDistance =
+    cubieBodyDimensions.halfWidth * cubieBodyDimensions.pieceScale * slotWidth;
   const u = new Vector3();
   const v = new Vector3();
   const corner = new Vector3();
@@ -264,6 +275,16 @@ function newCubieShape(outwardFaces: number[], slotWidth: number): CubieShape {
     // quad below winds counter-clockwise as seen from outside the puzzle.
     u.set(normal.y, normal.z, normal.x);
     v.crossVectors(normal, u);
+    logoSurfaces.set(
+      faceIdx,
+      rectangleLogoSurface(
+        normal
+          .clone()
+          .multiplyScalar(faceDistance + LOGO_ELEVATION * slotWidth),
+        u.clone().multiplyScalar(slotWidth / 2),
+        v.clone().multiplyScalar(slotWidth / 2),
+      ),
+    );
     const start = hintPositions.length / 3;
     for (const [su, sv] of [
       [-1, -1],
@@ -292,6 +313,7 @@ function newCubieShape(outwardFaces: number[], slotWidth: number): CubieShape {
     hintVertexCount: hintPositions.length / 3,
     faceVertexRanges,
     hintVertexRanges,
+    logoSurfaces,
   };
 }
 
@@ -331,6 +353,9 @@ function newCubiePiece(cubie: CubieLayout, shape: CubieShape): PiecePlan {
     hint: sticker.isDup
       ? []
       : [shape.hintVertexRanges.get(sticker.faceIdx)!].filter(Boolean),
+    // Set for a duplicate too: it is the same square, seen through another of
+    // the piece's facelets.
+    logo: shape.logoSurfaces.get(sticker.faceIdx) ?? null,
   }));
   return {
     orbit: cubie.orbit,

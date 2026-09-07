@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8" />
+    <title>Logo | twisty.js</title>
+    <link href="./demo-grid.css" rel="stylesheet" type="text/css" />
+    <script src="./twisty.js" href="./twisty.ts" type="module"></script>
+    <style>
+      figcaption {
+        text-align: center;
+        font-size: 0.85em;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1><code>experimental-logo</code></h1>
+    <p>
+      The same (deliberately wide, deliberately transparent) image on every
+      puzzle that takes a logo. It is stretched onto a square sized to the piece,
+      so it comes out the same size on all of them. The FTO and the clock have
+      no logo.
+    </p>
+    <div class="content">
+      <figure>
+        <twisty-player
+          puzzle="3x3x3"
+          alg="U"
+          experimental-logo="./logo-sample.png"
+        ></twisty-player>
+        <figcaption>3×3×3 — white center</figcaption>
+      </figure>
+      <figure>
+        <twisty-player
+          puzzle="2x2x2"
+          alg="R U R'"
+          experimental-logo="./logo-sample.png"
+        ></twisty-player>
+        <figcaption>2×2×2 — a piece of the white face</figcaption>
+      </figure>
+      <figure>
+        <twisty-player
+          puzzle="4x4x4"
+          alg="R U R'"
+          experimental-logo="./logo-sample.png"
+        ></twisty-player>
+        <figcaption>4×4×4 — corner of white</figcaption>
+      </figure>
+      <figure>
+        <twisty-player
+          puzzle="5x5x5"
+          alg="R U R'"
+          experimental-logo="./logo-sample.png"
+        ></twisty-player>
+        <figcaption>5×5×5 — corner of white</figcaption>
+      </figure>
+      <figure>
+        <twisty-player
+          puzzle="6x6x6"
+          alg="R U R'"
+          experimental-logo="./logo-sample.png"
+        ></twisty-player>
+        <figcaption>6×6×6 — corner of white</figcaption>
+      </figure>
+      <figure>
+        <twisty-player
+          puzzle="7x7x7"
+          alg="R U R'"
+          experimental-logo="./logo-sample.png"
+        ></twisty-player>
+        <figcaption>7×7×7 — corner of white</figcaption>
+      </figure>
+      <figure>
+        <twisty-player
+          puzzle="megaminx"
+          alg="R U R'"
+          experimental-logo="./logo-sample.png"
+        ></twisty-player>
+        <figcaption>Megaminx — white center</figcaption>
+      </figure>
+      <figure>
+        <twisty-player
+          puzzle="pyraminx"
+          alg="R U R'"
+          experimental-logo="./logo-sample.png"
+        ></twisty-player>
+        <figcaption>Pyraminx — middle of yellow</figcaption>
+      </figure>
+      <figure>
+        <twisty-player
+          puzzle="skewb"
+          alg="R U R'"
+          experimental-logo="./logo-sample.png"
+        ></twisty-player>
+        <figcaption>Skewb — white center</figcaption>
+      </figure>
+      <figure>
+        <twisty-player
+          puzzle="square1"
+          alg="(1, 0) / (3, 0)"
+          experimental-logo="./logo-sample.png"
+        ></twisty-player>
+        <figcaption>Square-1 — the equator block</figcaption>
+      </figure>
+      <figure>
+        <twisty-player
+          puzzle="fto"
+          alg="R U R'"
+          experimental-logo="./logo-sample.png"
+        ></twisty-player>
+        <figcaption>FTO — no logo</figcaption>
+      </figure>
+      <figure>
+        <twisty-player
+          puzzle="clock"
+          experimental-logo="./logo-sample.png"
+        ></twisty-player>
+        <figcaption>Clock — no logo</figcaption>
+      </figure>
+    </div>
+  </body>
+</html>

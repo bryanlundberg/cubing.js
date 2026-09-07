@@ -8,6 +8,7 @@ import type {
   StickerDatSticker,
 } from "../../../../puzzle-geometry";
 import { cubeFaceStyles, type FaceletStyle } from "./CubieStyle";
+import { type FaceletSurface, logoSurface } from "./PuzzleLogo";
 import {
   type PiecePlane,
   SOLID_PIECE_CHAMFER,
@@ -42,6 +43,9 @@ import {
 const PG_SCALE = 0.5; // Matches `PG3D`, so that the camera framing carries over.
 
 const EPSILON = 1e-6;
+
+/** How far a logo floats off the face it is printed on, in feature widths. */
+const LOGO_ELEVATION = 0.01;
 
 function vertexAt(sticker: StickerDatSticker, index: number): Vector3 {
   return new Vector3(
@@ -544,11 +548,27 @@ function newSolidPiece(
       : null;
   paintInternal(body.colors, solid.internalRanges);
 
+  // A logo sits just clear of the plastic, on the largest square that fits the
+  // facelet. Kept per face rather than per sticker, so that the duplicates
+  // stacked on a center's square get the square they share.
+  const logoByFace = new Map<number, FaceletSurface | null>();
+  for (const { sticker, polygon } of piece.stickers) {
+    logoByFace.set(
+      sticker.face,
+      logoSurface(
+        polygon,
+        outwardNormal(polygon)!,
+        LOGO_ELEVATION * sizes.featureScale,
+      ),
+    );
+  }
+
   const facelets: FaceletPlan[] = piece.stickers.map(({ sticker }) => ({
     ori: sticker.ori,
     faceStyle: sticker.face,
     body: solid.ranges[planeOfSticker.get(sticker)!],
     hint: [hintRanges.get(sticker)!],
+    logo: logoByFace.get(sticker.face) ?? null,
   }));
   for (const sticker of piece.duplicates) {
     facelets.push({
@@ -556,6 +576,7 @@ function newSolidPiece(
       faceStyle: sticker.face,
       body: [],
       hint: [],
+      logo: logoByFace.get(sticker.face) ?? null,
     });
   }
 

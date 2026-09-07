@@ -7,6 +7,7 @@ import {
   type FaceletStyle,
   hintMaskStyles,
 } from "./CubieStyle";
+import type { FaceletSurface } from "./PuzzleLogo";
 import type { VertexRange } from "./SolidPieceGeometry";
 
 /**
@@ -31,6 +32,13 @@ export interface FaceletPlan {
   body: VertexRange[];
   /** Vertices of its hint facelet. */
   hint: VertexRange[];
+  /**
+   * Where a logo would sit on this facelet, in the piece's own frame, or `null`
+   * for a facelet with no flat square to print on. Set even for a facelet that
+   * shares its square with another one, since a piece that turns in place shows
+   * the same square through a different facelet.
+   */
+  logo: FaceletSurface | null;
 }
 
 /**
