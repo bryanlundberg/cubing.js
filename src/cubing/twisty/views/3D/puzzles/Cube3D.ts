@@ -44,7 +44,12 @@ import {
   hintMaskStyles,
   newBodyMaterial,
 } from "./CubieStyle";
-import { newOutlineGeometry, outlineMaterial } from "./PieceOutline";
+import {
+  frameMaterial,
+  frameTriangles,
+  newOutlineGeometry,
+  outlineMaterial,
+} from "./PieceOutline";
 import { newLogoMesh, rectangleLogoSurface, surfaceMatrix } from "./PuzzleLogo";
 import type { Twisty3DPuzzle } from "./Twisty3DPuzzle";
 
@@ -405,6 +410,7 @@ interface FaceletInfo {
   faceIdx: number;
   facelet: Mesh;
   hintFacelet?: Mesh;
+  hintFrame?: Mesh;
   /**
    * Set in `stickerless` mode, where the facelet is one material group of the
    * shared cubie body instead of a mesh of its own.
@@ -704,6 +710,33 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
     return (this.#sharedHintStickerGeometryCache ??= newStickerGeometry());
   }
 
+  #sharedHintFrameGeometryCache: BufferGeometry | undefined;
+  #sharedHintFrameGeometry(): BufferGeometry {
+    if (!this.#sharedHintFrameGeometryCache) {
+      const geometry = new BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new BufferAttribute(
+          new Float32Array(
+            frameTriangles(
+              newStickerGeometry(),
+              cubeScale(this.#stickerless()) * getFaceletScale(this.options),
+            ),
+          ),
+          3,
+        ),
+      );
+      // Level with the hint facelets, wherever their elevation has them.
+      geometry.translate(
+        0,
+        0,
+        this.#sharedHintStickerGeometry().getAttribute("position").getZ(0),
+      );
+      this.#sharedHintFrameGeometryCache = geometry;
+    }
+    return this.#sharedHintFrameGeometryCache;
+  }
+
   #elevationRequest: "auto" | number | undefined;
   setHintFaceletsElevation(elevation: "auto" | number) {
     if (elevation === this.#elevationRequest) {
@@ -721,6 +754,11 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
   #lastHintStickerElevation = 0;
   #setHintFaceletsElevation(elevation: number) {
     this.#sharedHintStickerGeometry().translate(
+      0,
+      0,
+      elevation - this.#lastHintStickerElevation,
+    );
+    this.#sharedHintFrameGeometryCache?.translate(
       0,
       0,
       elevation - this.#lastHintStickerElevation,
@@ -806,6 +844,15 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
     }
   }
 
+  #setHintMaterial(faceletInfo: FaceletInfo, material: Material): void {
+    if (faceletInfo.hintFacelet) {
+      faceletInfo.hintFacelet.material = material;
+    }
+    if (faceletInfo.hintFrame) {
+      faceletInfo.hintFrame.visible = material !== invisibleMaterial;
+    }
+  }
+
   setStickeringMask(stickeringMask: StickeringMask): void {
     if (stickeringMask.specialBehaviour === "picture") {
       // TODO: if the latest stickering mask was already "picture", don't redo work.
@@ -813,10 +860,7 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
         for (const faceletInfos of pieceInfos) {
           for (const faceletInfo of faceletInfos) {
             this.#setFaceletMaterial(faceletInfo, "invisible");
-            const { hintFacelet } = faceletInfo;
-            if (hintFacelet) {
-              hintFacelet.material = invisibleMaterial;
-            }
+            this.#setHintMaterial(faceletInfo, invisibleMaterial);
           }
         }
       }
@@ -855,12 +899,12 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
                 typeof faceletStickeringMask === "string"
                   ? stickeringMask
                   : (faceletStickeringMask.hintMask ?? stickeringMask);
-              if (faceletInfo.hintFacelet) {
-                faceletInfo.hintFacelet.material =
-                  axesInfo[faceletInfo.faceIdx].hintStickerMaterial[
-                    hintStickeringMask
-                  ];
-              }
+              this.#setHintMaterial(
+                faceletInfo,
+                axesInfo[faceletInfo.faceIdx].hintStickerMaterial[
+                  hintStickeringMask
+                ],
+              );
             }
           }
         }
@@ -1022,6 +1066,16 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
         );
         cubie.add(hintSticker);
         faceletInfo.hintFacelet = hintSticker;
+        if (
+          this.options.experimentalStickeringMask?.specialBehaviour !==
+          "picture"
+        ) {
+          faceletInfo.hintFrame = new Mesh(
+            this.#sharedHintFrameGeometry(),
+            frameMaterial(),
+          );
+          hintSticker.add(faceletInfo.hintFrame);
+        }
         this.experimentalHintStickerMeshes.push(hintSticker);
       }
 
