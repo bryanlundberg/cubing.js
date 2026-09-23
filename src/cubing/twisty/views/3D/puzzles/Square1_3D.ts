@@ -15,6 +15,7 @@ import type { PuzzlePosition } from "../../../controllers/AnimationTypes";
 import { smootherStep } from "../../../controllers/easing";
 import { TAU } from "../TAU";
 import { bodyMaskColors, newVertexColorBodyMaterial } from "./CubieStyle";
+import { newOutlineGeometry, outlineMaterial } from "./PieceOutline";
 import {
   type FaceletSurface,
   newLogoMesh,
@@ -406,6 +407,12 @@ class Square1Piece extends Group {
         stickerlessMaterial(),
       );
       this.add(this.body);
+      this.add(
+        new Mesh(
+          newOutlineGeometry(this.body.geometry, PUZZLE_SCALE),
+          outlineMaterial(),
+        ),
+      );
       return;
     }
 
