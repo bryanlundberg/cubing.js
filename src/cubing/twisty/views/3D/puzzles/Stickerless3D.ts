@@ -22,6 +22,7 @@ import { smootherStep } from "../../../controllers/easing";
 import type { HintFaceletStyle } from "../../../model/props/puzzle/display/HintFaceletProp";
 import { TAU } from "../TAU";
 import { newVertexColorBodyMaterial } from "./CubieStyle";
+import { newOutlineGeometry, outlineMaterial } from "./PieceOutline";
 import {
   type FaceletAddress,
   type FaceletSurface,
@@ -32,7 +33,6 @@ import type { VertexRange } from "./SolidPieceGeometry";
 import {
   faceletAppearance,
   faceletAppearanceKey,
-  type PieceMesh,
   type PiecePlan,
   type PuzzlePlan,
   writeColor,
@@ -52,26 +52,29 @@ import type { Twisty3DPuzzle } from "./Twisty3DPuzzle";
 
 const invisibleMaterial = new MeshBasicMaterial({ visible: false });
 
-function newBatch(meshes: PieceMesh[], material: Material): BatchedMesh {
+function newBatch(
+  geometries: BufferGeometry[],
+  material: Material,
+): BatchedMesh {
   let vertices = 0;
   let indices = 0;
-  for (const { geometry } of meshes) {
+  for (const geometry of geometries) {
     vertices += geometry.getAttribute("position").count;
     indices += geometry.getIndex()?.count ?? 0;
   }
-  return new BatchedMesh(meshes.length, vertices, indices, material);
+  return new BatchedMesh(geometries.length, vertices, indices, material);
 }
 
 /** Copies one piece's geometry in, and returns where the batch put it. */
 function addToBatch(
   batch: BatchedMesh,
-  mesh: PieceMesh,
+  geometry: BufferGeometry,
   home: Matrix4,
 ): { instance: number; vertexStart: number } {
-  const geometryId = batch.addGeometry(mesh.geometry);
+  const geometryId = batch.addGeometry(geometry);
   const instance = batch.addInstance(geometryId);
   batch.setMatrixAt(instance, home);
-  mesh.geometry.dispose();
+  geometry.dispose();
   // `getGeometryRangeAt` reports more than the types admit to.
   const range = batch.getGeometryRangeAt(geometryId) as unknown as {
     vertexStart: number;
@@ -82,6 +85,7 @@ function addToBatch(
 interface Piece {
   /** Where this piece sits in each batch. -1 when it has no hint facelet. */
   bodyInstance: number;
+  outlineInstance: number;
   hintInstance: number;
   home: Matrix4;
   /** Where it is right now, which is `home` unless a move is sweeping it. */
@@ -125,6 +129,7 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
    * pieces it sweeps and nothing else.
    */
   #bodyBatch: BatchedMesh;
+  #outlineBatch: BatchedMesh;
   #hintBatch: BatchedMesh | null = null;
   #bodyColors: BufferAttribute;
   #hintColors: BufferAttribute | null = null;
@@ -175,7 +180,7 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
     }
 
     this.#bodyBatch = newBatch(
-      plan.pieces.map((piecePlan) => piecePlan.body),
+      plan.pieces.map((piecePlan) => piecePlan.body.geometry),
       this.#bodyMaterial,
     );
     // Opaque and always on screen, so neither sorting nor culling per piece
@@ -184,9 +189,18 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
     this.#bodyBatch.perObjectFrustumCulled = false;
     this.add(this.#bodyBatch);
 
+    // Same vertex and index counts as the bodies.
+    this.#outlineBatch = newBatch(
+      plan.pieces.map((piecePlan) => piecePlan.body.geometry),
+      outlineMaterial(),
+    );
+    this.#outlineBatch.sortObjects = false;
+    this.#outlineBatch.perObjectFrustumCulled = false;
+    this.add(this.#outlineBatch);
+
     const hints = plan.pieces
-      .map((piecePlan) => piecePlan.hint)
-      .filter((hint) => hint !== null);
+      .map((piecePlan) => piecePlan.hint?.geometry)
+      .filter((hint) => hint !== undefined);
     if (hints.length > 0) {
       this.#hintBatch = newBatch(hints, this.#hintMaterial);
       this.#hintBatch.perObjectFrustumCulled = false;
@@ -217,13 +231,23 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
   }
 
   #addPiece(plan: PiecePlan): void {
-    const bodyInstance = addToBatch(this.#bodyBatch, plan.body, plan.home);
+    const outlineInstance = addToBatch(
+      this.#outlineBatch,
+      newOutlineGeometry(plan.body.geometry, this.plan.scale),
+      plan.home,
+    );
+    const bodyInstance = addToBatch(
+      this.#bodyBatch,
+      plan.body.geometry,
+      plan.home,
+    );
     const hintInstance =
       plan.hint && this.#hintBatch
-        ? addToBatch(this.#hintBatch, plan.hint, plan.home)
+        ? addToBatch(this.#hintBatch, plan.hint.geometry, plan.home)
         : -1;
     const piece: Piece = {
       bodyInstance: bodyInstance.instance,
+      outlineInstance: outlineInstance.instance,
       hintInstance: hintInstance === -1 ? -1 : hintInstance.instance,
       home: plan.home,
       matrix: plan.home.clone(),
@@ -257,6 +281,7 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
 
   #setMatrix(piece: Piece): void {
     this.#bodyBatch.setMatrixAt(piece.bodyInstance, piece.matrix);
+    this.#outlineBatch.setMatrixAt(piece.outlineInstance, piece.matrix);
     if (piece.hintInstance !== -1) {
       this.#hintBatch!.setMatrixAt(piece.hintInstance, piece.matrix);
     }
@@ -379,6 +404,8 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
     this.#disposeLogo();
     this.#bodyBatch.dispose();
     this.#bodyBatch.geometry.dispose();
+    this.#outlineBatch.dispose();
+    this.#outlineBatch.geometry.dispose();
     this.#hintBatch?.dispose();
     this.#hintBatch?.geometry.dispose();
     this.#bodyMaterial.dispose();
