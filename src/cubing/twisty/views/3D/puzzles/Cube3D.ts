@@ -41,11 +41,10 @@ import {
   cubeFaceStyles,
   cubieBodyDimensions,
   cubieBodyHalfExtent,
-  cubieOutline,
   hintMaskStyles,
   newBodyMaterial,
-  newOutlineMaterial,
 } from "./CubieStyle";
+import { newOutlineGeometry, outlineMaterial } from "./PieceOutline";
 import { newLogoMesh, rectangleLogoSurface, surfaceMatrix } from "./PuzzleLogo";
 import type { Twisty3DPuzzle } from "./Twisty3DPuzzle";
 
@@ -100,11 +99,6 @@ const experimentalOriented2BodyMaterial = newBodyMaterial(
   bodyMaskColors.experimentalOriented2,
 );
 const mysteryBodyMaterial = newBodyMaterial(bodyMaskColors.mystery);
-const outlineMaterial = newOutlineMaterial();
-const OUTLINE_SCALE =
-  1 +
-  cubieOutline.width /
-    (cubieBodyDimensions.halfWidth * cubieBodyDimensions.pieceScale);
 
 interface MaterialMap<T extends Material = MeshBasicMaterial>
   extends Record<FaceletMeshStickeringMask, T> {
@@ -603,6 +597,19 @@ function cubieBodyGeometry(orbit: string, outerAxes: number[]): BufferGeometry {
   return geometry;
 }
 
+const cubieOutlineGeometryCache = new Map<string, BufferGeometry>();
+function cubieOutlineGeometry(
+  orbit: string,
+  body: BufferGeometry,
+): BufferGeometry {
+  let geometry = cubieOutlineGeometryCache.get(orbit);
+  if (!geometry) {
+    geometry = newOutlineGeometry(body, cubeScale(true));
+    cubieOutlineGeometryCache.set(orbit, geometry);
+  }
+  return geometry;
+}
+
 let sharedStickerGeometryCache: BufferGeometry | undefined;
 function sharedStickerGeometry(): BufferGeometry {
   return (sharedStickerGeometryCache ??= newStickerGeometry());
@@ -981,9 +988,9 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
       : null;
     if (body) {
       cubie.add(body);
-      const outline = new Mesh(body.geometry, outlineMaterial);
-      outline.scale.setScalar(OUTLINE_SCALE);
-      cubie.add(outline);
+      cubie.add(
+        new Mesh(cubieOutlineGeometry(orbit, body.geometry), outlineMaterial()),
+      );
     } else if (this.options.showFoundation) {
       const foundation = this.createCubieFoundation();
       cubie.add(foundation);
