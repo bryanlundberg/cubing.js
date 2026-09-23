@@ -1,3 +1,4 @@
+import { BackSide } from "three/src/constants.js";
 import { MeshBasicMaterial } from "three/src/materials/MeshBasicMaterial.js";
 import { Color } from "three/src/math/Color.js";
 import { Euler } from "three/src/math/Euler.js";
@@ -174,6 +175,23 @@ export function newVertexColorBodyMaterial(): MeshBasicMaterial {
   const material = newBodyMaterial(0xffffff);
   material.vertexColors = true;
   return material;
+}
+
+// Inverted hull; translucent black so it fades out on dark backgrounds.
+export const cubieOutline = {
+  /** In slots. */
+  width: 0.012,
+  opacity: 0.18,
+};
+
+export function newOutlineMaterial(): MeshBasicMaterial {
+  return new MeshBasicMaterial({
+    color: 0x000000,
+    side: BackSide,
+    transparent: true,
+    opacity: cubieOutline.opacity,
+    depthWrite: false,
+  });
 }
 
 /** Colors a stickering mask puts on a piece in place of a facelet's own. */
