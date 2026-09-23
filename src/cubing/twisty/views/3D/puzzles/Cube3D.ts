@@ -41,8 +41,10 @@ import {
   cubeFaceStyles,
   cubieBodyDimensions,
   cubieBodyHalfExtent,
+  cubieOutline,
   hintMaskStyles,
   newBodyMaterial,
+  newOutlineMaterial,
 } from "./CubieStyle";
 import { newLogoMesh, rectangleLogoSurface, surfaceMatrix } from "./PuzzleLogo";
 import type { Twisty3DPuzzle } from "./Twisty3DPuzzle";
@@ -98,6 +100,11 @@ const experimentalOriented2BodyMaterial = newBodyMaterial(
   bodyMaskColors.experimentalOriented2,
 );
 const mysteryBodyMaterial = newBodyMaterial(bodyMaskColors.mystery);
+const outlineMaterial = newOutlineMaterial();
+const OUTLINE_SCALE =
+  1 +
+  cubieOutline.width /
+    (cubieBodyDimensions.halfWidth * cubieBodyDimensions.pieceScale);
 
 interface MaterialMap<T extends Material = MeshBasicMaterial>
   extends Record<FaceletMeshStickeringMask, T> {
@@ -974,6 +981,9 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
       : null;
     if (body) {
       cubie.add(body);
+      const outline = new Mesh(body.geometry, outlineMaterial);
+      outline.scale.setScalar(OUTLINE_SCALE);
+      cubie.add(outline);
     } else if (this.options.showFoundation) {
       const foundation = this.createCubieFoundation();
       cubie.add(foundation);
