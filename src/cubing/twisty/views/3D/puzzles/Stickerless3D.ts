@@ -22,7 +22,13 @@ import { smootherStep } from "../../../controllers/easing";
 import type { HintFaceletStyle } from "../../../model/props/puzzle/display/HintFaceletProp";
 import { TAU } from "../TAU";
 import { newVertexColorBodyMaterial } from "./CubieStyle";
-import { newOutlineGeometry, outlineMaterial } from "./PieceOutline";
+import {
+  frameColor,
+  newFrameGeometry,
+  newOutlineGeometry,
+  newVertexColorFrameMaterial,
+  outlineMaterial,
+} from "./PieceOutline";
 import {
   type FaceletAddress,
   type FaceletSurface,
@@ -87,6 +93,7 @@ interface Piece {
   bodyInstance: number;
   outlineInstance: number;
   hintInstance: number;
+  frameInstance: number;
   home: Matrix4;
   /** Where it is right now, which is `home` unless a move is sweeping it. */
   matrix: Matrix4;
@@ -100,6 +107,7 @@ interface FaceletSlot {
   /** Vertices in the batch's own color attribute, not the piece's. */
   body: VertexRange[];
   hint: VertexRange[];
+  frame: VertexRange[];
   /** Which face and masks the colors currently written here came from. */
   appearanceKey: number;
   /** The masks this facelet contributes when another slot displays it. */
@@ -133,12 +141,15 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
   #hintBatch: BatchedMesh | null = null;
   #bodyColors: BufferAttribute;
   #hintColors: BufferAttribute | null = null;
+  #frameBatch: BatchedMesh | null = null;
+  #frameColors: BufferAttribute | null = null;
   /** Indexed `[orbit][ori][ord]`, like the orbits of the `KPuzzle`. */
   #facelets: Record<string, FaceletSlot[][]> = {};
   #axesInfo: Record<string, AxisInfo> = {};
   #controlTargets: Object3D[] = [];
   #bodyMaterial: Material;
   #hintMaterial: Material;
+  #frameMaterial: Material;
   #appearances = new Map<number, Uint8Array>();
   /** Pieces rotated away from their home position by the last frame. */
   #turningPieces: Piece[] = [];
@@ -171,6 +182,7 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
       side: BackSide,
     });
     this.#bodyMaterial = newVertexColorBodyMaterial();
+    this.#frameMaterial = newVertexColorFrameMaterial();
 
     for (const axis of stickerDat.axis) {
       this.#axesInfo[axis.quantumMove.family] = {
@@ -206,8 +218,30 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
       this.#hintBatch.perObjectFrustumCulled = false;
       this.add(this.#hintBatch);
     }
+    const frames = new Map<PiecePlan, ReturnType<typeof newFrameGeometry>>();
     for (const piecePlan of plan.pieces) {
-      this.#addPiece(piecePlan);
+      if (!piecePlan.hint) {
+        continue;
+      }
+      const frame = newFrameGeometry(
+        piecePlan.hint.geometry,
+        piecePlan.facelets.map((facelet) => facelet.hint),
+        plan.scale,
+      );
+      if (frame.geometry.getAttribute("position").count > 0) {
+        frames.set(piecePlan, frame);
+      }
+    }
+    if (frames.size > 0) {
+      this.#frameBatch = newBatch(
+        [...frames.values()].map((frame) => frame.geometry),
+        this.#frameMaterial,
+      );
+      this.#frameBatch.perObjectFrustumCulled = false;
+      this.add(this.#frameBatch);
+    }
+    for (const piecePlan of plan.pieces) {
+      this.#addPiece(piecePlan, frames.get(piecePlan) ?? null);
     }
     // A batch has no buffers of its own until the first geometry goes in.
     this.#bodyColors = this.#bodyBatch.geometry.getAttribute(
@@ -215,6 +249,9 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
     ) as BufferAttribute;
     this.#hintColors =
       (this.#hintBatch?.geometry.getAttribute("color") as BufferAttribute) ??
+      null;
+    this.#frameColors =
+      (this.#frameBatch?.geometry.getAttribute("color") as BufferAttribute) ??
       null;
     this.experimentalUpdateOptions({
       hintFacelets: options.hintFacelets ?? "floating",
@@ -230,7 +267,10 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
     }
   }
 
-  #addPiece(plan: PiecePlan): void {
+  #addPiece(
+    plan: PiecePlan,
+    frame: ReturnType<typeof newFrameGeometry> | null,
+  ): void {
     const outlineInstance = addToBatch(
       this.#outlineBatch,
       newOutlineGeometry(plan.body.geometry, this.plan.scale),
@@ -245,10 +285,15 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
       plan.hint && this.#hintBatch
         ? addToBatch(this.#hintBatch, plan.hint.geometry, plan.home)
         : -1;
+    const frameInstance =
+      frame && this.#frameBatch
+        ? addToBatch(this.#frameBatch, frame.geometry, plan.home)
+        : null;
     const piece: Piece = {
       bodyInstance: bodyInstance.instance,
       outlineInstance: outlineInstance.instance,
       hintInstance: hintInstance === -1 ? -1 : hintInstance.instance,
+      frameInstance: frameInstance?.instance ?? -1,
       home: plan.home,
       matrix: plan.home.clone(),
       turning: false,
@@ -262,7 +307,7 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
         count: range.count,
       }));
     const orbitFacelets = (this.#facelets[plan.orbit] ??= []);
-    for (const facelet of plan.facelets) {
+    for (const [i, facelet] of plan.facelets.entries()) {
       (orbitFacelets[facelet.ori] ??= [])[plan.ord] = {
         piece,
         faceStyle: facelet.faceStyle,
@@ -271,6 +316,12 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
           hintInstance === -1
             ? []
             : shift(facelet.hint, hintInstance.vertexStart),
+        frame:
+          frame && frameInstance
+            ? shift([frame.ranges[i]], frameInstance.vertexStart).filter(
+                (range) => range.count > 0,
+              )
+            : [],
         appearanceKey: -1,
         mask: "regular",
         hintMask: "regular",
@@ -284,6 +335,9 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
     this.#outlineBatch.setMatrixAt(piece.outlineInstance, piece.matrix);
     if (piece.hintInstance !== -1) {
       this.#hintBatch!.setMatrixAt(piece.hintInstance, piece.matrix);
+    }
+    if (piece.frameInstance !== -1) {
+      this.#frameBatch!.setMatrixAt(piece.frameInstance, piece.matrix);
     }
   }
 
@@ -408,6 +462,9 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
     this.#outlineBatch.geometry.dispose();
     this.#hintBatch?.dispose();
     this.#hintBatch?.geometry.dispose();
+    this.#frameBatch?.dispose();
+    this.#frameBatch?.geometry.dispose();
+    this.#frameMaterial.dispose();
     this.#bodyMaterial.dispose();
     this.#hintMaterial.dispose();
   }
@@ -527,6 +584,9 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
   }): void {
     if (options.hintFacelets !== undefined && this.#hintBatch) {
       this.#hintBatch.visible = options.hintFacelets !== "none";
+      if (this.#frameBatch) {
+        this.#frameBatch.visible = this.#hintBatch.visible;
+      }
       this.scheduleRenderCallback();
     }
   }
@@ -709,6 +769,14 @@ export class Stickerless3D extends Object3D implements Twisty3DPuzzle {
           this.#paint(this.#bodyColors, slot.body, appearance, 0);
           if (this.#hintColors) {
             this.#paint(this.#hintColors, slot.hint, appearance, 4);
+          }
+          if (this.#frameColors) {
+            this.#paint(
+              this.#frameColors,
+              slot.frame,
+              frameColor(appearance[7] > 0),
+              0,
+            );
           }
         }
       }
