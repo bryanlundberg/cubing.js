@@ -1,5 +1,6 @@
 import type { Tagged } from "type-fest";
 import type { Move } from "../../alg";
+import type { KTransformation } from "../../kpuzzle";
 import type { KPattern } from "../../kpuzzle/KPattern";
 
 export type MillisecondTimestamp = Tagged<
@@ -34,6 +35,12 @@ export interface MoveInProgress {
 export type PuzzlePosition = {
   pattern: KPattern;
   movesInProgress: MoveInProgress[];
+  /**
+   * What takes the default pattern to `pattern`. Unlike `pattern`, it keeps
+   * the orientations `orientationMod` throws away, such as how far each 3×3×3
+   * center has turned.
+   */
+  transformation?: KTransformation;
 };
 
 export enum BoundaryType {
