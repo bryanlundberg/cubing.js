@@ -969,11 +969,16 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
     const reid333 = p.pattern;
     for (const orbit in pieceDefs) {
       const pieces = pieceDefs[orbit];
+      // The pattern forgets how far a center has turned, but the transformation
+      // doesn't, and a sprite or logo on the center shows it.
+      const orientation =
+        p.transformation?.transformationData[orbit].orientationDelta ??
+        reid333.patternData[orbit].orientation;
       for (let i = 0; i < pieces.length; i++) {
         const j = reid333.patternData[orbit].pieces[i];
         this.pieces[orbit][j].matrix.copy(pieceDefs[orbit][i].matrix);
         this.pieces[orbit][j].matrix.multiply(
-          orientationRotation[orbit][reid333.patternData[orbit].orientation[i]],
+          orientationRotation[orbit][orientation[i]],
         );
       }
       for (const moveProgress of p.movesInProgress) {
@@ -1245,9 +1250,9 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
    * Prints a logo on the white center, or takes it off again when passed
    * `null`.
    *
-   * The image is stretched onto a square sized to the piece, so its own
-   * proportions don't matter. It rides the piece, so a rotation of the whole
-   * cube carries it to whichever face the white center ends up on.
+   * The image is fitted, at its own proportions, into a square sized to the
+   * piece. It rides the piece, so it turns with the white face and a rotation
+   * of the whole cube carries it wherever that center goes.
    */
   experimentalSetLogo(texture: Texture | null): void {
     if (this.#logoMesh) {
@@ -1279,15 +1284,16 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
   }
 
   /**
-   * Puts the logo where its piece is.
+   * Puts the logo where its piece is, turned the way the piece is turned, like
+   * the logo on a real cube.
    *
-   * Almost all of this is the piece's own matrix, but not quite: the 3×3×3's
-   * `KPuzzle` does not track how a center is turned (`orientationMod` is 1),
-   * so a `U` ends in the state it started in as far as the white center is
-   * concerned. Riding that animation would spin the logo through the turn and
-   * snap it back at the end, so a move that leaves the piece in its own slot
-   * leaves the logo alone. A move that carries the piece elsewhere — a cube
-   * rotation — still takes the logo with it.
+   * That is the piece's own matrix, as long as the position says how far the
+   * center has turned. A pattern alone doesn't: the 3×3×3's `KPuzzle` drops a
+   * center's orientation (`orientationMod` is 1), so a `U` ends in the state it
+   * started in as far as the white center is concerned. Riding that animation
+   * would spin the logo through the turn and snap it back at the end, so
+   * without a transformation a move that leaves the piece in its own slot
+   * leaves the logo alone.
    */
   #placeLogo(p: PuzzlePosition): void {
     const mesh = this.#logoMesh;
@@ -1302,7 +1308,8 @@ export class Cube3D extends Object3D implements Twisty3DPuzzle {
       return;
     }
     mesh.visible = true;
-    const untracked = orbitPattern.orientationMod?.[slot] === 1;
+    const untracked =
+      !p.transformation && orbitPattern.orientationMod?.[slot] === 1;
     const staysPut =
       untracked &&
       p.movesInProgress.every(
