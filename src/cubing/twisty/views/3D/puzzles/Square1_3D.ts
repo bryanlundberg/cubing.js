@@ -755,9 +755,8 @@ export class Square1_3D extends Object3D implements Twisty3DPuzzle {
    * Prints a logo on the equator block, or takes it off again when passed
    * `null`.
    *
-   * The image is stretched onto a square sized to the face, so its own
-   * proportions don't matter. It is a child of the piece, so it turns and flips
-   * with the equator.
+   * The image is fitted, at its own proportions, into a square sized to the
+   * face. It is a child of the piece, so it turns and flips with the equator.
    */
   experimentalSetLogo(texture: Texture | null): void {
     if (this.#logoMesh) {
