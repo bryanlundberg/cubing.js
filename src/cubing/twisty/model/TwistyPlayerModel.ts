@@ -12,6 +12,7 @@ import { CatchUpMoveProp } from "./props/puzzle/state/CatchUpMoveProp";
 import { CurrentLeavesSimplifiedProp } from "./props/puzzle/state/CurrentLeavesSimplified";
 import { CurrentMoveInfoProp } from "./props/puzzle/state/CurrentMoveInfoProp";
 import { CurrentPatternProp } from "./props/puzzle/state/CurrentPatternProp";
+import { CurrentTransformationProp } from "./props/puzzle/state/CurrentTransformationProp";
 import { IndexerConstructorProp } from "./props/puzzle/state/IndexerConstructorProp";
 import { IndexerConstructorRequestProp } from "./props/puzzle/state/IndexerConstructorRequestProp";
 import { IndexerProp } from "./props/puzzle/state/IndexerProp";
@@ -214,7 +215,7 @@ export class TwistyPlayerModel {
 
   /******************************** Depth 10 ********************************/
 
-  currentPattern = new CurrentPatternProp({
+  currentTransformation = new CurrentTransformationProp({
     anchoredStart: this.anchorTransformation,
     currentLeavesSimplified: this.currentLeavesSimplified,
     indexer: this.indexer,
@@ -222,9 +223,16 @@ export class TwistyPlayerModel {
 
   /******************************** Depth 11 ********************************/
 
+  currentPattern = new CurrentPatternProp({
+    currentTransformation: this.currentTransformation,
+  });
+
+  /******************************** Depth 12 ********************************/
+
   legacyPosition = new LegacyPositionProp({
     currentMoveInfo: this.currentMoveInfo,
     currentPattern: this.currentPattern,
+    currentTransformation: this.currentTransformation,
   });
 
   twistySceneModel = new TwistySceneModel(this);
