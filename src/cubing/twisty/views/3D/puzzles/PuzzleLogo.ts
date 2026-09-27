@@ -13,9 +13,10 @@ import type { StickerDat } from "../../../../puzzle-geometry";
  * white center of a 3×3×3.
  *
  * The image is placed by the puzzle's own geometry rather than by anything the
- * caller passes in: whatever picture arrives is stretched onto the largest
- * square that fits the facelet it belongs on, so a tall logo, a wide one, and
- * one of an odd size all come out the same size on the piece.
+ * caller passes in: whatever picture arrives is fitted, at its own proportions,
+ * into the largest square that fits the facelet it belongs on, so a tall logo,
+ * a wide one, and one of an odd size all come out undistorted and no bigger
+ * than the piece.
  *
  * Which piece that is, is a question about the puzzle and not about the
  * renderer, so it is answered once here (see {@link logoFaceletAddress}) and
@@ -138,20 +139,26 @@ export function surfaceMatrix(surface: FaceletSurface, into: Matrix4): Matrix4 {
     .setPosition(surface.center);
 }
 
-let cachedLogoGeometry: BufferGeometry | undefined;
-/** A quad from (-1, -1) to (1, 1) in the `z` plane, carrying the whole image. */
-export function logoGeometry(): BufferGeometry {
-  if (cachedLogoGeometry) {
-    return cachedLogoGeometry;
+const cachedLogoGeometries = new Map<number, BufferGeometry>();
+/**
+ * A quad in the `z` plane carrying the whole image, as big as fits in (-1, -1)
+ * to (1, 1) at the image's `width / height`.
+ */
+export function logoGeometry(aspect: number = 1): BufferGeometry {
+  const cached = cachedLogoGeometries.get(aspect);
+  if (cached) {
+    return cached;
   }
+  const x = Math.min(1, aspect);
+  const y = Math.min(1, 1 / aspect);
   const geometry = new BufferGeometry();
   geometry.setAttribute(
     "position",
     new BufferAttribute(
       // biome-ignore format: one vertex per line is less readable than one triangle per line.
       new Float32Array([
-        -1, -1, 0, 1, -1, 0, 1, 1, 0,
-        -1, -1, 0, 1, 1, 0, -1, 1, 0,
+        -x, -y, 0, x, -y, 0, x, y, 0,
+        -x, -y, 0, x, y, 0, -x, y, 0,
       ]),
       3,
     ),
@@ -164,8 +171,14 @@ export function logoGeometry(): BufferGeometry {
       0, 0, 1, 1, 0, 1,
     ]), 2),
   );
-  cachedLogoGeometry = geometry;
+  cachedLogoGeometries.set(aspect, geometry);
   return geometry;
+}
+
+/** `width / height` of the image, or 1 for a texture that has none yet. */
+function imageAspect(texture: Texture): number {
+  const { width, height } = texture.image ?? {};
+  return width > 0 && height > 0 ? width / height : 1;
 }
 
 /**
@@ -177,7 +190,6 @@ export function newLogoMesh(texture: Texture): Mesh {
   const mesh = new Mesh(
     logoGeometry(),
     new MeshBasicMaterial({
-      map: texture,
       side: FrontSide,
       transparent: true,
       // The logo floats just above the plastic, so it never has to compete with
@@ -186,10 +198,22 @@ export function newLogoMesh(texture: Texture): Mesh {
       depthWrite: false,
     }),
   );
+  setLogoTexture(mesh, texture);
   mesh.matrixAutoUpdate = false;
   // Drawn after the piece it sits on, whatever order the pieces come out in.
   mesh.renderOrder = 1;
   return mesh;
+}
+
+/** Puts another image on a mesh from {@link newLogoMesh}. */
+export function setLogoTexture(mesh: Mesh, texture: Texture): void {
+  // A face seen at a glancing angle blurs the image to mush without this. The
+  // renderer brings it down to whatever the GPU supports.
+  texture.anisotropy = 16;
+  mesh.geometry = logoGeometry(imageAspect(texture));
+  const material = mesh.material as MeshBasicMaterial;
+  material.map = texture;
+  material.needsUpdate = true;
 }
 
 /** Where the logo goes on a puzzle, in terms the puzzle's geometry can answer. */
